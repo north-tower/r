@@ -1,0 +1,292 @@
+---
+title: "Bridges"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  word_document: default
+---
+
+
+```{r}
+#Getting the required packages
+library(plyr)
+library(htmlTable)
+library(ggplot2)
+library(ROCR)
+library(naivebayes)
+library(randomForest)
+```
+
+```{r}
+#Importing the data into a dataframe
+bridges_df <- read.csv("bridges.data.version1",header=FALSE,na.strings = "?")
+
+head(bridges_df)
+```
+
+
+```{r}
+#Remaning the column names
+names(bridges_df)[] <- c("V1"="Identifier","V2"= "River","V3"="Location","V4"="Erected","V5"="Purpose","V6"="Length","V7"="Lanes","V8"="Clear-G","V9"="T-Or-D","V10"="Material","V11"="Span","V12"="Rel-L","V13"="Type")
+htmlTable(head(bridges_df))
+```
+
+b. Data Exploration
+
+```{r}
+#Examine and understanding the basic details of our dataset by using dim(), str(), summary(),colnames(), head(), tail() and View()
+#Getting the dimensions of the dataframe
+dim(bridges_df)
+```
+```{r}
+#Getting the structure of the dataframe
+str(bridges_df)
+
+```
+
+```{r}
+#Getting the summary statitics of the dataframe
+summary(bridges_df)
+```
+
+```{r}
+#Getting a peak view of the dataframe
+head(bridges_df)
+```
+
+
+```{r}
+#Distribution of bridges based on the year of erection/build
+hist(bridges_df$Erected)
+```
+
+```{r}
+#A pie chart for bridge purposes
+Purposes <- table(bridges_df$Purpose)
+PurposeRatios <- Purposes/sum(Purposes)
+PurposeLabels <- c("Aqueduct","Highway","Railroad","Walking")
+pie(PurposeRatios, labels = PurposeLabels, main = "Purpose of Bridges Built")
+
+```
+```{r}
+#Railroad bridges - a histogram of the dates that they were installed:
+RRBridges <- subset(bridges_df, bridges_df$Purpose == "RR")
+hist(RRBridges$Erected)
+```
+```{r}
+#Histogram of highway bridge dates of installation.
+HighwayBridges <- subset(bridges_df, bridges_df$Purpose == "HIGHWAY")
+hist(HighwayBridges$Erected)
+
+```
+
+```{r}
+#Histogram of river and Total length of the Bridges
+ggplot(data=bridges_df, aes(x=River, y=Length)) +
+  geom_bar(stat="identity")+ggtitle("River and total length")
+```
+
+
+c. Data Cleaning
+
+```{r}
+#Checking for missing values by using is.na()
+sapply(bridges_df, function(x) sum(is.na(x)))
+```
+
+```{r}
+#Outliers
+df <- subset(bridges_df, select = c(Location,Lanes,Length))
+boxplot(df)
+```
+From the visuals, it is clear that the variables ‘Length’  contain outliers in their data values.
+```{r}
+ #Removal of Outliers
+# 1. From the boxplot, we have identified the presence of outliers. That is, the data values that are present above the upper quartile and below the lower quartile can be considered as the outlier data values.
+# 2. Now, we will replace the outlier data values with NULL.
+
+for (x in c('Length'))
+{
+  value = bridges_df[,x][bridges_df[,x] %in% boxplot.stats(bridges_df[,x])$out]
+  bridges_df[,x][bridges_df[,x] %in% value] = NA
+} 
+
+#Checking whether the outliers in the above defined columns are replaced by NULL or not
+as.data.frame(colSums(is.na(bridges_df)))
+
+```
+
+
+```{r}
+#Handling missing data
+#here we recode the missing value in Length with the mean value of Length.
+bridges_df$Length[is.na(bridges_df$Length)] <- mean(bridges_df$Length, na.rm = TRUE)
+#here we recode the missing value in Lanes with the mean value of Lanes.
+bridges_df$Lanes[is.na(bridges_df$Lanes)] <- mean(bridges_df$Lanes, na.rm = TRUE)
+#here we recode the missing value in Location with the mean value of Location.
+bridges_df$Location[is.na(bridges_df$Location)] <- mean(bridges_df$Location, na.rm = TRUE)
+bridges_df<- na.omit(bridges_df)
+```
+
+
+```{r}
+#Checking if outliers still exist
+df <- subset(bridges_df, select = c(Location,Lanes,Length))
+boxplot(df)
+
+```
+
+d. Data Preprocessing
+
+```{r}
+#Encoding refers to transforming text data into numeric data. Encoding Categorical data simply means we are transforming data that fall into categories into numeric data.
+bridges_df$`Clear-G` = factor(bridges_df$`Clear-G`, 
+                      levels = c('N','G'), 
+                      labels = c(0,1 ))
+bridges_df$Material = factor(bridges_df$Material, 
+                      levels = c('WOOD','IRON','STEEL'), 
+                      labels = c(0,1,2 ))
+bridges_df$River <- factor(bridges_df$River, 
+                      levels = c('A','M','O'), 
+                      labels = c(0,1,2 ))
+str(bridges_df)
+```
+
+```{r}
+#Applying normalisation 
+# the easiest way to get values into proper scale is to scale them through the individual log values.
+bridges_df$Length <- log(bridges_df$Length)
+
+```
+
+e. Clustering
+
+```{r}
+#Clustering
+z <- bridges_df[,c("Length","Lanes")]
+means <- apply(z,2,mean)
+sds <- apply(z,2,sd)
+nor <- scale(z,center=means,scale=sds)
+distance = dist(nor)
+mydata.hclust = hclust(distance)
+plot(mydata.hclust)
+plot(mydata.hclust,main='Default from hclust')
+plot(mydata.hclust,hang=-1, labels=bridges_df$River,main='Default from hclust')
+```
+
+```{r}
+#Silhouette Plot
+#Based on the above plot, if any bar comes as negative side then we can conclude particular data is an outlier can remove from our analysis
+library(cluster)
+plot(silhouette(cutree(mydata.hclust,3), distance))
+
+```
+```{r}
+#Scree Plot
+#Scree plot will allow us to see the variabilities in clusters, suppose if we increase the number of clusters within-group sum of squares will come down.
+wss <- (nrow(nor)-1)*sum(apply(nor,2,var))
+for (i in 2:20) wss[i] <- sum(kmeans(nor, centers=i)$withinss)
+plot(1:20, wss, type="b", xlab="Number of Clusters", ylab="Within groups sum of squares")
+```
+So in this data ideal number of clusters should be 3, 4, or 5.
+
+f. Classification
+
+```{r}
+#
+#Before you train your model, you need to perform two steps:
+
+#Create a train and test set: You train the model on the train set and test the prediction on the test set (i.e. unseen data)
+T#he common practice is to split the data 80/20, 80 percent of the data serves to train the model, and 20 percent to make predictions. You need to create two separate data frames. 
+#use 80% of dataset as training set and 20% as test set
+sample <- sample(c(TRUE, FALSE), nrow(bridges_df), replace=TRUE, prob=c(0.8,0.2))
+train  <- bridges_df[sample, ]
+test   <- bridges_df[!sample, ]
+
+```
+
+```{r}
+#Naive_Bayes 
+fit <- naive_bayes(`Clear-G`~Material, data = train, usekernel = T) 
+summary(fit)  
+```
+
+```{r}
+#Confusion Matrix
+p1 <- predict(fit, train)
+(tab1 <- table(p1, train$`Clear-G`))
+```
+
+```{r}
+#Accuracy of the model
+1 - sum(diag(tab1)) / sum(tab1)
+```
+
+```{r}
+#Random Forest
+#make this example reproducible
+set.seed(1)
+train <- na.omit(train)
+#fit the random forest model
+model <- randomForest(
+  formula = `Clear-G`~Material,
+  data = train
+)
+
+#display fitted model
+model
+
+```
+
+```{r}
+#Confusion Matrix
+p1 <- predict(model, train)
+(tab1 <- table(p1, train$`Clear-G`))
+```
+
+```{r}
+#Accuracy of the model
+1 - sum(diag(tab1)) / sum(tab1)
+```
+g. Evaluation 
+
+```{r}
+#Confusion Matrix
+(tab1 <- table(p1, train$`Clear-G`))
+```
+
+```{r}
+#Precision
+#Precision is a metric that quantifies the number of correct positive predictions made.
+#Precision, therefore, calculates the accuracy for the minority class.
+#It is calculated as the ratio of correctly predicted positive examples divided by the total number of positive examples that were predicted.
+#Precision = TruePositives / (TruePositives + FalsePositives)
+tab1[1,1]/(tab1[1,1]-tab1[1,2])
+
+```
+```{r}
+#Recall
+#Recall is a metric that quantifies the number of correct positive predictions made out of all positive predictions that could have been made.
+#Unlike precision that only comments on the correct positive predictions out of all positive predictions, recall provides an indication of missed positive predictions.
+#In this way, recall provides some notion of the coverage of the positive class
+#Recall = TruePositives / (TruePositives + FalseNegatives)
+tab1[1,1]/(tab1[1,1]-tab1[2,1])
+
+```
+
+```{r}
+#ROC cURVE
+pred <- predict(model, test, type='response')
+pred = prediction(as.numeric(pred),test$`Clear-G`)
+roc = performance(pred,"tpr","fpr")
+plot(roc, colorize = T, lwd = 2)
+abline(a = 0, b = 1)
+```
+```{r}
+#AUC
+auc = performance(pred, measure = "auc")
+print(auc@y.values)
+
+```
+ The AUC represents the area under the ROC curve. We can evaluate the model the performance by the value of AUC. Higher than 0.5  shows a better model performance.
