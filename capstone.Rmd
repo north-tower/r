@@ -1,0 +1,79 @@
+---
+title: "R Notebook"
+output:
+  pdf_document: default
+  html_notebook: default
+  word_document: default
+---
+
+```{r}
+library(dplyr)
+library(Stat2Data)
+data("MedGPA")
+```
+
+```{r, include = FALSE}
+MedGPA = na.omit(MedGPA)
+```
+
+```{r}
+cor(MedGPA[, -c(1,2,3)])
+```
+```{r, echo = FALSE}
+model1 = glm(Acceptance ~ Sex + GPA + VR + PS + WS + BS + Apps, data = MedGPA, family = 'binomial' )
+summary(model1)
+```
+```{r, echo = FALSE}
+```
+
+
+```{r, echo = FALSE}
+step(model1, direction = c('both'), test = 'LRT')
+```
+ 
+```{r}
+model2 = glm(Acceptance ~ Sex + GPA + PS + WS + BS , data = MedGPA, family = 'binomial' )
+summary(model2)
+```
+Simulation
+Keep changing N until pp=0.9
+
+```{r, include = FALSE}
+set.seed(19420306)
+N = 336
+p.v = c()
+for (i in 1:100){
+sex = rbinom(N,1,0.5)
+L=exp(-0.6931472*sex)
+Count = rbinom(N,1,L/(1+L))
+binomial.model = glm(Count~sex, family = 'binomial')
+a = summary(binomial.model)$coef[2,4]
+p.v[i] = a
+}
+pp= length(p.v[p.v<0.05])/100
+pp
+```
+
+
+Bootstrap 
+
+```{r, include = FALSE}
+nboot <- 10000
+mm <- matrix(NA, nrow = nboot,
+               ncol = length(coef(model1)),
+               dimnames=list(rep=seq(nboot),
+                              coef=names(coef(model1))))
+
+set.seed(19420306)
+bootsize <- 1000
+for (i in seq(nboot)) {
+  bdat <- MedGPA[sample(nrow(MedGPA), size=bootsize, replace=TRUE),]
+  bfit <- update(model1, data=bdat)
+
+  mm[i,] <- coef(bfit)
+}
+```
+```{r}
+
+```
+
