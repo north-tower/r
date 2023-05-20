@@ -1,0 +1,66 @@
+---
+title: "Auto-mpg"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r}
+library(gtsummary)
+library(dplyr )
+library(ggplot2)
+```
+
+```{r}
+#Importing the dataset
+df <- read.table("auto-mpg.data",col.names=c("mpg","cylinders","displacement","horsepower","weight","acceleration","model_year","origin","car_name"))
+df$horsepower <- as.numeric(df$horsepower)
+head(df)
+```
+
+
+#Problem 1. Table
+```{r}
+
+df2 <- df%>% select(-c(car_name))
+ df2 %>% tbl_summary(by = origin, missing = "no") %>% add_overall() %>% add_stat_label()
+
+```
+
+#Problem 2:Bad Figures
+
+```{r}
+
+
+ggplot(df, aes(x=as.factor(cylinders), fill=as.factor(cylinders))) +
+  geom_bar()+ylab ("Number of Cars") + xlab("Number of cylinders")+ggtitle("Most used popular cylinders")
+
+
+```
+The problem is  While the plot is technically correct, it is not aesthetically pleasing. The colors are too bright and not useful. The background grid is too prominent. The text is displayed using five different fonts in five different sizes
+
+```{r}
+df$model_year <- as.factor(df$model_year)
+grp_by_outcome <- df %>%
+  group_by(model_year) %>%
+  summarise(mpg = sum(mpg))
+ggplot(grp_by_outcome, aes(x=model_year,y=mpg)) + geom_col() + ggtitle("Miles per gallon per year")+theme_void() + theme(legend.position="none")
+```
+
+The problem is Without an explicit x or y axis scale, the numbers represented by the lines cannot be ascertained
+
+
+#Problem 3:Good Figures
+
+```{r}
+ggplot(df, aes(x=as.factor(cylinders))) +
+  geom_bar() + ylab ("Number of Cars") + xlab("Number of cylinders")+ggtitle("Most used popular cylinders")
+
+```
+
+```{r}
+grp_by_outcome <- df %>%
+  group_by(model_year) %>%
+  summarise(mpg = sum(mpg))
+ggplot(grp_by_outcome, aes(x=model_year,y=mpg)) + geom_col() + ggtitle("Miles per gallon per year")
+```
