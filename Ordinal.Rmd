@@ -1,0 +1,50 @@
+---
+title: "Ordinal"
+output: html_notebook
+---
+
+ 
+Loading the Library
+```{r}
+library(MASS)
+library(readxl)
+```
+
+```{r}
+## import data
+data <- read.csv("Final-data2.csv")
+# view data
+str(data)
+head(data)
+```
+
+```{r}
+# Model one
+model_fit <- polr(as.factor(Final.R) ~ HomeVsAway + Market.Value + Score.lag, data = data, Hess = TRUE)
+summary(model_fit)
+
+```
+
+```{r}
+#The significance of coeffiecients and intercepts
+summary_table <- coef(summary(model_fit))
+pval <- pnorm(abs(summary_table[, "t value"]),lower.tail = FALSE)* 2
+summary_table <- cbind(summary_table, "p value" = round(pval,3))
+summary_table
+```
+The p-value of variables <0.05, are statistically significant at 95% CI
+```{r}
+#Model two
+model_fit1 <- polr(as.factor(Final.R) ~ HomeVsAway + Market.Value + Score.lag + H + A +D, data = data, Hess = TRUE)
+summary(model_fit1)
+```
+```{r}
+#The significance of coeffiecients and intercepts
+summary_table1 <- coef(summary(model_fit1))
+pval1 <- pnorm(abs(summary_table1[, "t value"]),lower.tail = FALSE)* 2
+summary_table1 <- cbind(summary_table1, "p value" = round(pval,3))
+summary_table1
+
+```
+The p-value of variables <0.05, are statistically significant at 95% CI
+
