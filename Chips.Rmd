@@ -1,0 +1,136 @@
+---
+title: "chips"
+output:
+  word_document: default
+  html_document:
+    df_print: paged
+---
+
+
+```{r}
+library("readxl")
+df <- read_excel("FuentesChips.xlsx")
+```
+
+```{r}
+#Getting the preview of the dataset
+head(df)
+```
+```{r}
+#Getting the structure of the dataset
+str(df)
+```
+
+```{r}
+#Descriptive Statistics
+summary(df)
+str(df)
+```
+```{r}
+#Data visualisations 
+#Penetration per region
+#New England
+library(ggplot2)
+ggplot(df)  + aes(x=`New England`) + geom_bar()
+```
+
+```{r}
+#Mid Atlantic
+ggplot(df)  + aes(x=`Mid-Atlantic`) + geom_bar()
+
+```
+
+```{r}
+#Mid west
+ggplot(df)  + aes(x=`Midwest`) + geom_bar()
+```
+
+```{r}
+#Great Plains
+ggplot(df)  + aes(x=`Great Plains`) + geom_bar()
+
+```
+
+```{r}
+#South Atlantic
+ggplot(df)  + aes(x=`South Atlantic`) + geom_bar()
+
+```
+
+```{r}
+#Deep South
+ggplot(df)  + aes(x=`Deep South`) + geom_bar()
+
+```
+
+
+```{r}
+#Mountain
+ggplot(df)  + aes(x=`Mountain`) + geom_bar()
+
+```
+
+
+```{r}
+#Pacific
+ggplot(df)  + aes(x=`Pacific`) + geom_bar()
+```
+
+```{r}
+#label encoding assigns each categorical value an integer value based on alphabetical order this is so that can be readily used by algorithms.
+df$`New England` <- as.numeric(factor(df$`New England`))
+df$`Mid-Atlantic` <- as.numeric(factor(df$`Mid-Atlantic`))
+df$`Midwest` <- as.numeric(factor(df$`Midwest`))
+df$`Great Plains` <- as.numeric(factor(df$`Great Plains`))
+df$`Deep South` <- as.numeric(factor(df$`Deep South`))
+df$`South Atlantic` <- as.numeric(factor(df$`South Atlantic`))
+df$`Mountain` <- as.numeric(factor(df$`Mountain`))
+df$`Pacific` <- as.numeric(factor(df$`Pacific`))
+```
+
+```{r}
+#Test the hypothesis that the proportion of stores carries Fuente's products is the same across the US sales regions.
+
+#Stacking the dataframe
+df2 <-stack(df[1:8])
+df4 <-c(0.3481, 0.1730, 0.4788, 0.231, 0.45, 0.65, .43, .21 )
+#Changing the column names
+colnames(df2)[1]  <- "Penetration"
+colnames(df2)[2]  <- "Region"
+
+
+#The R function aov() can be used to answer to this question
+res.aov <- aov(Penetration ~ Region, data = df2)
+
+summary(res.aov)
+
+```
+As the p-value is less than the significance level 0.05, we can conclude that there are significant differences between the regions highlighted with “**" in the model summary.
+
+
+
+```{r}
+#Marascuilo Procedure 
+## Set the proportions of interest.
+p = df4
+N = 8
+value = critical.range = tag = c()
+categories <- c("New England", "Mid Atlantic", "Midwest", "Great Plains", "South Atlantic", "Deep South", "Mountain",
+            "Pacific")
+## Compute critical values.
+for (i in 1:(N-1)){ 
+    for (j in (i+1):N){
+
+    value <- c(value,(abs(p[i]-p[j])))
+    critical.range = c(critical.range,
+                       sqrt(qchisq(.95,N-1))*sqrt(p[i]*(1-p[i])/12000 + p[j]*(1-p[j])/12000))
+    tag = c(tag, paste(categories[i], categories[j], sep = "-"))
+
+    }
+}
+df3 <- as.data.frame(cbind(value,critical.range, tag), stringsAsFactors = F)
+df3$value <- round(as.numeric(df3$value),3)
+df3$critical.range <- round(as.numeric(df3$critical.range),3)
+
+df3
+```
