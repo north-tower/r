@@ -1,0 +1,156 @@
+---
+title: "Holdout"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+```{r}
+# libraries
+library(tm)
+library(ggplot2)
+library(wordcloud)
+library(reshape2)
+library(igraph)
+#library(qdap)
+library(udpipe)
+library(data.table)
+library(SnowballC) 
+library(caret)
+library(party)
+library(skmeans)
+library(topicmodels)
+library(ldatuning)
+library(text2vec)
+library(glmnet) # lasso regression
+library('e1071')
+```
+
+```{r}
+options(stringsAsFactors = F) 
+DfOrigin <- read.csv("SportPolitics_holdout.csv")
+
+## define parameter as factor
+DfOrigin$topic <- as.factor(DfOrigin$topic)
+typeof(DfOrigin$topic)
+
+# remove duplicated rows
+Df <-unique(DfOrigin)
+
+#remove rows with no topic or no tweets
+Df <- Df[is.na(Df$topic) == FALSE,]
+Df <- Df[is.na(Df$tweet) == FALSE,]
+
+```
+```{r}
+## preprocess
+preprocess <- function(data){
+  myCorpus <- VCorpus(VectorSource(data))
+  myCorpus <- tm_map(myCorpus, stripWhitespace)
+  myCorpus <- tm_map(myCorpus, removePunctuation)
+  myCorpus <- tm_map(myCorpus, content_transformer(tolower))
+  #myCorpus <- tm_map(myCorpus, removeNumbers)
+  myCorpus <- tm_map(myCorpus, removeWords, stopwords("english"))
+  myCorpus <- tm_map(myCorpus, stemDocument)
+  return(myCorpus)
+}
+
+myCorpus <- preprocess(Df$tweet)
+```
+
+```{r}
+# produce DTM and inspect
+Dtm <- DocumentTermMatrix(myCorpus,control=list(weighting=weightTfIdf))
+
+# check the term matrix
+inspect(Dtm)
+dim(as.matrix(Dtm))
+
+# remove sparse terms
+Dtm_NotSparsed <- removeSparseTerms(Dtm, .97)
+Dtm_NotSparsed_DataFrame <- as.data.frame.matrix(Dtm_NotSparsed)
+
+# check the matrix  
+dim(as.matrix(Dtm_NotSparsed_DataFrame))
+
+```
+```{r}
+# TODO!
+deltaDtm <- DocumentTermMatrix(myCorpus)
+termFreq <- colSums(as.matrix(deltaDtm))
+termFreqDf <- data.frame(term = names(termFreq), frequency = termFreq)
+wordcloud(termFreqDf$term,termFreqDf$frequency, max.words = 100, colors = c('black','darkred'))
+
+
+Dtm_NotSparsed_DataFrame$topic <- Df$topic
+dim(as.matrix(Dtm_NotSparsed_DataFrame))
+
+Dtm_NotSparsed_DataFrame$topic <- ifelse(Dtm_NotSparsed_DataFrame$topic == "Sports", 1, 2)
+#Dtm_NotSparsed_DataFrame$topic <- as.factor(Dtm_NotSparsed_DataFrame$topic)
+typeof(Dtm_NotSparsed_DataFrame$topic)
+
+Dtm_NotSparsed_DataFrame <- na.omit(Dtm_NotSparsed_DataFrame)
+```
+```{r}
+set.seed(1)
+trainIDs <- sample(1:(dim(Dtm_NotSparsed_DataFrame)[1]), dim(Dtm_NotSparsed_DataFrame)[1]*0.6)
+training <- Dtm_NotSparsed_DataFrame[trainIDs,] 
+holdout <- Dtm_NotSparsed_DataFrame[-trainIDs,]
+
+###  ctree
+tr <- ctree(topic ~ ., data = training[,])
+plot(tr)
+
+```
+```{r}
+typeof(training$topic)
+training$topic <- as.factor(training$topic)
+
+
+
+cv <- cv.glmnet(data.matrix(training), 
+                y = training$topic,
+                alpha=1,
+                family='binomial', 
+                nfolds=10, 
+                intercept=F, 
+                type.measure = 'class')
+
+preds <- predict(cv, as.matrix(validation), 
+                 type = 'class', s=cv$lambda.1se)
+
+typeof(preds)
+tmpPreds <- ifelse(preds > 1.5, 2, 1)
+typeof(tmpPreds)
+tmpPreds <- as.factor(tmpPreds)
+```
+```{r}
+### knn 
+
+
+model_knn <- train(x = as.matrix(training[, -1]), y = training$topic, 
+                    method = "knn",
+                    metric = 'Accuracy',
+                   tuneGrid = expand.grid(k = c(1,3,9,15,30)),
+                    tuneLength = 5)
+
+
+plot(model_knn)
+
+# Prediction
+knn_pred <- predict(model_knn, newdata = validation)
+#RMSE(knn_pred, validation$topic)
+
+predict(model_knn, data.frame(tweet = "RT @JayRadd78: @espn #MyDunkWouldBe 360 spin, dunk it, catch it with my feet, kick it to my hands and dunk it again. Re-dunk-ulous."))
+
+
+
+
+```
+
+
+
+
+
+
