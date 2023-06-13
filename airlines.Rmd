@@ -1,0 +1,112 @@
+---
+title: "Chandi-A3"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+
+```{r}
+library(tidyverse)
+library(mdsr)
+library(Lahman)
+```
+
+```{r}
+db <- dbConnect_scidb("airlines")
+flights <- tbl(db, "flights")
+carriers <- tbl(db, "carriers")
+
+```
+
+
+```{sql connection=db}
+SELECT carrier, flight,year,month,day,dest,origin
+FROM flights
+WHERE year=1990 AND month=9 AND day=26 AND dest="LAX" AND origin="JFK";
+
+```
+
+
+Problem 8
+a. List the names of all batters who have at least 300 home runs (HR) and 300 stolen bases 
+(SB) in their careers and rank them by career batting average (H/ABH/AB).
+
+```{r}
+data("Batting")
+data("People")
+head(Batting)
+```
+
+```{r}
+totalHR <- Batting %>% group_by(playerID) %>% summarise(Homeruns = sum(as.numeric(HR), na.rm = TRUE), Stolenbases = sum(as.numeric(SB), na.rm = TRUE),Hits = sum(as.numeric(H),na.rm = TRUE),Atbats = sum(as.numeric(AB),na.rm = TRUE))
+
+df = totalHR[totalHR$Homeruns>=300 & totalHR$Stolenbases>=300,]
+
+df$career_batting_average <- df$Hits/df$Atbats
+arrange(df, desc(career_batting_average))
+```
+
+
+b. List the names of all pitchers who have at least 300 wins (W) and 3,000 strikeouts (SO) in 
+their careers and rank them by career winning percentage (W/(W+L)W/(W+L)).
+```{r}
+data("Pitching")
+head(Pitching)
+
+```
+
+```{r}
+totalP <- Pitching %>% group_by(playerID) %>% summarise(Wins = sum(as.numeric(W), na.rm = TRUE), Strikeouts = sum(as.numeric(SO), na.rm = TRUE),Loses = sum(as.numeric(L),na.rm = TRUE))
+
+df2 = totalP[totalP$Wins >300 & totalP$Strikeouts>3000,]
+df2$career_winning_percentage <- df2$Wins/(df2$Wins+df2$Loses)
+arrange(df2, desc(career_winning_percentage))
+```
+
+
+c. The attainment of either 500 home runs (HR) or 3,000 hits (H) in a career is considered 
+to be among the greatest achievements to which a batter can aspire. These milestones 
+are thought to guarantee induction into the Baseball Hall of Fame, and yet several 
+players who have attained either milestone have not been inducted into the Hall of 
+Fame. Identify them
+```{r}
+data("HallOfFame")
+head(HallOfFame)
+```
+
+```{r}
+df3 = totalHR[totalHR$Homeruns > 500 & totalHR$Hits > 3000,]
+df3
+```
+```{r}
+anti_join(df3, HallOfFame, by='playerID')
+```
+
+Problem 10 (Medium): Use the dbConnect_scidb function to connect to the airlines
+database to answer the following problem. Find all flights between JFK and SFO in 1994. How 
+many were canceled? What percentage of the total number of flights were canceled?
+
+```{sql connection=db}
+
+SELECT count(*)
+FROM flights
+WHERE year=1994  AND dest="JFK" AND origin="SFO" AND cancelled=0;
+
+```
+Problem 11 (Hard): The following open-ended question may require more than one query and 
+a thoughtful response. Based on data from 2012 only, and assuming that transportation to the 
+airport is not an issue, would you rather fly out of JFK, LaGuardia (LGA), or Newark (EWR)? Why 
+or why not? Use the dbConnect_scidb function to connect to the airlines database.
+```{r}
+head(flights)
+```
+
+```{sql connection=db}
+SELECT COUNT(*)
+FROM flights
+WHERE year=2012 AND origin="JFK" OR (origin="LGA" OR origin="EWR") ;
+
+```
+
