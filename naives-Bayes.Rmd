@@ -1,0 +1,55 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+#Load Libraries
+library(naivebayes)
+library(caret)
+```
+
+```{r}
+#Getting the dataset
+df <- read.csv("amirsecretfile.csv")
+head(df)
+```
+
+```{r}
+#Setting outcome variables as categorical
+#Setting outcome variables as categorical
+df$gender <- ifelse(df$gender=="F",0,1)
+df$City <- as.factor(df$City)
+df$gender <- as.factor(df$gender)
+```
+
+```{r}
+#Studying the structure of the data
+ str(df)
+```
+```{r}
+#checking for missing values
+sum(is.na(df))
+```
+```{r}
+#train and test data sets
+set.seed(1234)
+ind <- sample(2, nrow(df), replace = T, prob = c(0.8, 0.2))
+train <- df[ind == 1,]
+test <- df[ind == 2,]
+
+```
+
+```{r}
+#Model Building
+model <- naive_bayes(gender ~ FamilyIncome + EdYears + Grocery + Cosmatics + MF + 
+                       BoughtCosmatics + Response + City, data = train, usekernel = T) 
+summary(model) 
+```
+```{r}
+#Prediction
+Predict <- predict(model,newdata = test )
+#create confusion matrix
+confusionMatrix(test$gender, Predict)
+```
+The final output shows that I have built a Naive Bayes classifier that can predict whether a person is male or female, with an accuracy of approximately 99%.
