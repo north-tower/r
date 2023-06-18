@@ -1,0 +1,169 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+View Layer
+```{r}
+namespace ViewLayer
+{
+  public partial class FrmDemo : Form{
+    public FrmDemo ()
+    InitializeComponent ();
+    BusinessLayer. Customer Info info = BusinessLayer. CustomerInfo. GetCustomer (1);
+}
+  private void GetCustomer_Click(object sender, EventArgs e)
+  NormalBusinessLayer.CustomerInfo info = NormalBusinessLayer.CustomerInfo.GetCustomer(1);
+  MessageBox. Show("Get customer done. . . ");
+}
+
+```
+This layer of the code is the View part that is to be displayed to the end user of the application, in other words the front end of the application
+
+
+Business Layer
+```{r}
+
+namespace NormalBusinessLayer
+{
+  public class CustomerInfo
+  {
+    public static CustomerInfo GetCustomer (int id)
+    {
+    Customer cust = new Customer();
+    IDataReader dr = cust.GetCustomer(id);
+    return null;
+    }
+  }
+
+}
+
+```
+
+
+This layer of the code provides the business logic for the front end of the application . This layer does all the complex activity and communicates with the datalyer.
+
+
+Normal Layer
+```{r}
+namespace NormalDataLayer{
+  public class Customer{
+    public IDataReader GetCustomer (int id){
+      #code to call database and get data
+      return null;
+    }
+  }
+}
+
+```
+
+This layer of code communicates with the DataBase or DataStructure where the data is stored and brings that data out of it.
+
+
+
+```{r}
+using System;
+using System.Collections.Generic;
+using System.Ling;
+using System.Text;
+
+using System.Threading.Tasks;
+namespace LinqFirstAndFirstOrDefault{
+  class Employee{
+    public int Id { get; set; }
+    public string Name { get; set; }
+    public string City { get; set; }
+    
+  }
+    
+  public class Program{
+      static void Main(string[] args){
+        IList <Employee> employeeList = new List<Employee>(){
+        new Employee() { Id = 10, Name = "Chris", city = "London" },
+        new Employee() { Id=11, Name="Robert", City="London"},
+        new Employee() { Id=12, Name="Mahesh", City="India"},
+        new Employee() { Id=13, Name="Peter", City="US"},
+        new Employee() { Id=14, Name="Chris", City="US"}
+        };
+    
+    #First example
+    var result1 = employeeList.First();
+    #It will return the first element like Id = 10, Name = "Chris", city = "London"
+    
+    var result2 = employeeList. First(e => e.Id == 12) ;
+    #It will return the first element like Id=12, Name="Mahesh", City="India";
+    
+    var result3 = employeeList. First(e => e.Name == "Chris");
+    #Two records available for Name=Chris but it will return the first like Id = 10,Name = "chris", City = "London";
+    
+    var result4 = employeeList. First(e => e.Id == 16);
+    #No element for Id=16 so, It throws an exception that Sequence contains more than  one matching elemen
+    
+    #FirstorDefault example
+    
+    var result5 = employeeList.FirstorDefault();
+    #It will return the first element like Id = 10, Name = "Chris", city = "London";
+    
+    var result6 = employeeList.FirstOrDefault(e => e.Id == 12);
+    #It will return the first element like Id=12, Name="Mahesh", City="India";
+    
+    var result7 = employeeList. FirstorDefault(e => e.Name == "Chris");
+    #Two records available for Name=Chris but it will return the first like Id = 10,Name = "Chris", City = "London";
+
+    var results = employeeList. FirstorDefault(e => e.Id == 16);
+    #No element for Id=16 so, It return null for default;
+
+    Console. ReadLine() ;
+
+    }
+  }
+}
+```
+
+```{r}
+
+using System;
+using System.Linq;
+using System. Collections.Generic;
+
+class Demo{
+  
+  static public void Main()
+ {
+     IList<int> List1 = new List<int>( ) {8, 11, 22, 37, 58, 97 };
+     IList<string> List2 = new List<string>() {"Apple", "Orange", "Banana" };
+    
+     IList<string> List3 = new List<string>() { null ,"one", "two", "three" };
+     IList<string> List4 = new List<string>();
+    
+     Console. WriteLine("ist element in List 1 is {0}", List1. FirstorDefault());
+     Console. WriteLine("ist even element in List 1 is {o}",
+     List1. FirstOrDefault(i=> i % 2==0) );
+    
+     Console. WriteLine("ist element in List 2 is {}", List2. FirstorDefault( ));
+     Console. WriteLine("ist element in List 3 is {0]", List3. FirstorDefault( ));
+     Console. WriteLine("ist element in List 4 is {}", List4. FirstorDefault());
+}
+
+
+```
+
+```{r}
+using System;
+using System.Linq;
+using System. Collections . Generic;
+class Program
+{
+static public void Main(){
+  int[] seq1 = {122, 33, 55, 77, 243, 65};
+  var result1 = seq1. FirstOrDefault(sequence => sequence < 77);
+  Console. WriteLine( "The value is fo} ", resulti);
+
+
+ int[ ] seq2= {};
+ var result2 = seq2. FirstOrDefault( );
+  Console. WriteLine("Our default value is {o} ", result2);
+}
+ }
+```
