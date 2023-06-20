@@ -1,0 +1,198 @@
+---
+title: "Kicks"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r}
+#getting the libraries
+library(tidytext)
+library(ggplot2)
+library(tidyverse)
+library(stringi)
+library(wordcloud)
+```
+
+```{r}
+#Importing the dataset
+kicks <- read.csv("kickstarter_data_O.csv")
+head(kicks)
+```
+```{r}
+#Data cleaning
+kicks <- na.omit(kicks)
+```
+
+
+
+```{r}
+#Preprocessing
+#Encoding categorical data
+kicks$country <- as.factor(kicks$country)
+kicks$state <- as.factor(kicks$state)
+kicks$category <- as.factor(kicks$category)
+
+```
+```{r}
+#Data Exploration
+#Failed vs Success
+ggplot(kicks, aes(state)) + 
+  geom_bar()
+```
+```{r}
+#Number of countries
+levels(kicks$country)
+levels(kicks$state)
+```
+```{r}
+#success/failure rate  country
+grp_by_country <- kicks %>%
+  group_by(country) %>%
+  summarise(successful = sum(state == "successful"), failed = sum(state == "failed")) 
+grp_by_country
+```
+
+```{r}
+#Visualization
+ggplot(kicks , aes(country)) + geom_bar(aes(fill=state))
+```
+```{r}
+#success/failure rate category
+grp_by_category <- kicks %>%
+  group_by(category) %>%
+  summarise(successful = sum(state == "successful"), failed = sum(state == "failed")) 
+grp_by_category
+```
+```{r}
+#visualization
+ggplot(kicks , aes(y=category)) + geom_bar(aes(fill=state))
+```
+```{r}
+#Funds
+summary(kicks$goal)
+```
+```{r}
+#Date Difference,state per category
+ggplot(kicks, aes(y=category,x=date_difference)) + geom_col(aes(fill=state))
+
+```
+```{r}
+#Word count per category
+count_category <- kicks %>% 
+  group_by(category) %>%
+  summarise(word_count = sum(WC))
+count_category
+```
+```{r}
+#Visualization Word Count per category
+ggplot(count_category, aes(y=category,x=word_count)) + geom_col()
+
+```
+
+```{r}
+#Word frequency
+kicks$text_clean <- tolower(kicks$blurb) # Lowercase
+kicks$text_clean <- gsub("[[:punct:]]", "", kicks$text_clean) # Remove punctuation
+
+kicks$text_clean <- gsub("[[:digit:]]", "", kicks$text_clean) # Remove numbers
+kicks$text_clean <- gsub("\\s+", " ", stri_enc_toutf8(kicks$text_clean)) #Removeextrawhitespaces
+vocab <- unlist(str_split(kicks$text_clean, " ")) # Split into vocab list
+total_words <- length(vocab) # Total words - 2958646
+unique_words <- length(unique(vocab)) # Unique Words - 101764
+lex_div <- unique_words / total_words # Lexical Diversity - 0.03439546
+vocab_nsw <- vocab[!(vocab) %in% stop_words$word] # Only keep nonstopwords
+kicks_text_clean <- paste(vocab_nsw, collapse = " ") # Gather back into one string
+freq_word <- sort(table(unlist(strsplit(kicks_text_clean, " "))), #Create frequency table
+ decreasing = TRUE)
+freq_word <- as.data.frame(freq_word)
+freq_word <- freq_word %>%
+ rename(word = Var1, freq=Freq)
+word_frequency_top10 <- freq_word%>%  top_n(10,freq)
+
+ggplot(word_frequency_top10,aes(word,freq,fill=freq)) +
+ geom_col()
+
+```
+```{r}
+#Word Cloud
+word_frequency_top200 <- freq_word%>%
+ top_n(200,freq)
+wordcloud(words = word_frequency_top200$word, freq =
+word_frequency_top200$freq, min.freq = 1,
+ max.words=200, random.order=FALSE, rot.per=0.35,
+ colors=brewer.pal(8, "Dark2"))
+```
+```{r}
+#Check frequency of words in text
+text_df <- subset(kicks, select = c(blurb,category))
+
+
+text_df %>%
+  group_by(category)
+```
+
+```{r}
+
+tidy_category <- text_df %>%  unnest_tokens(word, blurb)
+
+head(tidy_category)
+
+```
+```{r}
+#Removing stop words
+data(stop_words)
+
+tidy_category <- tidy_category %>%
+  anti_join(stop_words)
+```
+```{r}
+#Check frequency of words
+tidy_category %>%
+  count(word, sort = TRUE) 
+```
+```{r}
+#Visualization
+tidy_category %>%
+  count(word, sort = TRUE) %>%
+  filter(n > 4000) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(n, word)) +
+  geom_col() +
+  labs(y = NULL)
+```
+
+```{r}
+#Effects of posemo and negemo
+grp_by_state <- kicks %>% group_by(state) %>%
+  summarise(posemo = sum(posemo), negemo = sum(negemo))
+grp_by_state
+
+```
+
+```{r}
+#nrc emotions related to financial distress,financial strain,financial pressure
+nrc <- get_sentiments("nrc")   %>%
+  filter(sentiment == c("anger", "fear","sadness","anticip")) 
+nrc
+```
+```{r}
+#words linked to financial distress linked,financial strain, financial pressure in the dataset and their nrc per category
+tidy_category %>% inner_join(nrc) %>%
+  group_by(category) %>%
+  count(word, sort = TRUE) 
+```
+
+
+
+```{r}
+#LIWC output variables related to financial distress, financial stress are negemo,anx,anger,sad,risk,money
+#LIWC in the dataset per category
+
+grp_by_category <- kicks %>% group_by(category) %>%
+  summarise(anxiety = sum(anx),anger = sum(anger), sad = sum(sad),risk = sum(risk), money = sum(money), negemo = sum(negemo))
+grp_by_category
+```
+
+
+
