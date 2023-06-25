@@ -1,0 +1,57 @@
+---
+title: "Hr"
+output: html_notebook
+---
+
+#Importing the data
+```{r}
+hr <- read.csv("HR_comma_sep.csv")
+summary(hr)
+```
+
+#Checking for missing values
+```{r}
+(colMeans(is.na(hr)))*100
+```
+#Data Transformation
+#1 Sales
+```{r}
+hr$sales[hr$sales == "accounting"] <- 0
+hr$sales[hr$sales == "hr"] <- 1
+hr$sales[hr$sales == "IT"] <- 2
+hr$sales[hr$sales == "management"] <- 3
+hr$sales[hr$sales == "marketing"] <- 4
+hr$sales[hr$sales == "product_mng"] <- 5
+hr$sales[hr$sales == "RandD"] <- 6
+hr$sales[hr$sales == "sales"] <- 7
+hr$sales[hr$sales == "support"] <- 8
+hr$sales[hr$sales == "technical"] <- 9
+```
+#sales: 0-accounting 1-hr 2-IT 3-management 4-marketing 5-product_mng 6-Rand 7-sales 8-support 9-technical 
+
+#2 Salary
+```{r}
+hr$salary[hr$salary == "low"] <- 0
+hr$salary[hr$salary == "medium"] <- 1
+hr$salary[hr$salary == "high"] <- 2
+```
+#salary: 0-low 1-medium 2-high
+
+#Unbalanced Data
+```{r}
+hr$sales <- as.factor(hr$sales)
+hr$salary <- as.factor(hr$salary)
+summary(hr$sales)
+summary(hr$salary)
+```
+#Train and Test set
+```{r}
+library(caret)
+set.seed(3456)
+trainIndex <- createDataPartition(hr$salary, p = .7,
+                                  list = FALSE,
+                                  times = 1)
+Train <- hr[ trainIndex,]
+Test <- hr[-trainIndex,]
+```
+#70%-Train 30%-Test
