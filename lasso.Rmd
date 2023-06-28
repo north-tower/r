@@ -1,0 +1,265 @@
+---
+title: "lasso"
+output: html_notebook
+---
+
+ 
+
+```{r}
+games <- read.csv("FinalDataset.csv")
+
+games <- na.omit(games)  # Remove NA
+```
+
+```{r}
+
+library(dplyr)
+game <- games %>% filter(Rating != "") %>% droplevels()  #remove empty rating observations
+
+# By multiplying 1000000 we get the actual sale, 
+# Adding 1 makes all sales positive which make log possible for all sales later
+game$Year_of_Release <- as.factor(as.character(game$Year_of_Release))
+game$NA_Sales <- game$NA_Sales * 1000000 + 1
+game$EU_Sales <- game$EU_Sales * 1000000 + 1
+game$JP_Sales <- game$JP_Sales * 1000000 + 1
+game$Other_Sales <- game$Other_Sales * 1000000 + 1
+game$Global_Sales <- game$Global_Sales * 1000000 + 1
+
+# By being divided by 10 to make Critic Score the same decimal as User Score
+game$Critic_Score <- as.numeric(as.character(game$Critic_Score)) / 10  
+game$User_Score <- as.numeric(as.character(game$User_Score))
+game$Critic_Count <- as.numeric(game$Critic_Count)
+game$User_Count <- as.numeric(game$User_Count)
+
+# Set category variables as factor variables 
+game$Name <- as.factor(game$Name)
+game$Platform <- as.factor(game$Platform)
+game$Genre <- as.factor(game$Genre)
+game$Publisher <- as.factor(game$Publisher)
+game$Developer <- as.factor(game$Developer)
+game$Rating <- as.factor(game$Rating)
+```
+```{r}
+# Format column names 
+colnames(game) <- c("Name", "Platform", "Year.Release", "Genre", "Publisher", "NA.Sales", "EU.Sales", "JP.Sales", "Other.Sales", "Global.Sales", "Critic.Score", "Critic.Count", "User.Score", "User.Count", "Developer", "Rating")
+
+str(game)
+```
+
+```{r}
+NA.Sales.Log <- log(game$NA.Sales)   
+EU.Sales.Log <- log(game$EU.Sales)  
+JP.Sales.Log <- log(game$JP.Sales)   
+Other.Sales.Log <- log(game$Other.Sales)  
+Global.Sales.Log <- log(game$Global.Sales) 
+Critic.Count.Log <- log(game$Critic.Count)
+User.Count.Log <- log(game$User.Count)
+
+game.log <- cbind.data.frame(NA.Sales.Log, EU.Sales.Log, JP.Sales.Log, Other.Sales.Log,
+Global.Sales.Log, Critic.Count.Log, User.Count.Log)
+game <- cbind.data.frame(game, game.log)  # The data we use for analysis
+
+name <- colnames(game)[c(11, 13, 17:23)]  # Pick up the numeric columns according to the names 
+par(mfrow = c(5, 4))  # Layout in 5 rows and 4 columns
+par(mar = rep(2, 4))
+
+for (i in 1:length(name)){
+  sub <- sample(game[name[i]][, 1], 5000)
+  submean <- mean(sub)
+  hist(sub, main = paste("Hist. of", name[i], sep = " "), xlab = name[i])
+  abline(v = submean, col = "blue", lwd = 1)
+  qqnorm(sub, main = paste("Q-Q Plot of", name[i], sep = " "))
+  qqline(sub) 
+  if (i == 1) {s.t <- shapiro.test(sub)
+  } else {s.t <- rbind(s.t, shapiro.test(sub))
+ }
+}
+s.t <- s.t[, 1:2]  # Take first two columns of shapiro.test result
+s.t <- cbind(name, s.t) # Add variable name for the result
+s.t
+```
+```{r}
+#Platform analysis
+# Regroup platform as Platform.type 
+pc <- c("PC")
+xbox <- c("X360", "XB", "XOne")
+nintendo <- c("Wii", "WiiU", "N64", "GC", "NES", "3DS", "DS") 
+playstation <- c("PS", "PS2", "PS3", "PS4", "PSP", "PSV")
+game <- game %>%
+  mutate(Platform.type = ifelse(Platform %in% pc, "PC",
+                           ifelse(Platform %in% xbox, "Xbox",
+                             ifelse(Platform %in% nintendo, "Nintendo", 
+                               ifelse(Platform %in% playstation, "Playstation", "Others"))))) 
+library(ggplot2)
+ggplot(game, aes(x = Platform.type)) + geom_bar(fill = "blue")
+
+#Genre Analysis
+dat <- data.frame(table(game$Genre))
+dat$fraction <- dat$Freq / sum(dat$Freq)
+dat <- dat[order(dat$fraction), ]
+dat$ymax <- cumsum(dat$fraction)
+dat$ymin <- c(0, head(dat$ymax, n = -1))
+names(dat)[1] <- "Genre"
+library(ggplot2)
+ggplot(dat, aes(fill = Genre, ymax = ymax, ymin = ymin, xmax = 4, xmin = 3)) +
+  geom_rect(colour = "grey30") +  # Background color
+  coord_polar(theta = "y") +  # Coordinate system to polar
+  xlim(c(0, 4)) +  
+  labs(title = "Ring plot for Genre", fill = "Genre") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+#Ratings Analysis
+# Regroup Rating as Rating.type 
+rating <- c("E", "T", "M", "E10+")
+game <- game %>% 
+  mutate(Rating.type = ifelse(Rating %in% rating, as.character(Rating), "Others")) 
+```
+```{r}
+
+#Training and test set
+game$ID <- seq_along(game[,1])
+
+training_set <- subset(game, ID <= 1000 )
+test_set <- subset(game, ID >1000)
+
+#Multiple regression
+# Re-categorize publisher into 13 groups
+# Re-categorize publisher into 13 groups
+Publisher. <- head(names(sort(table(game$Publisher), decreasing = TRUE)), 12)
+
+game <- game %>%
+  mutate(Publisher.type = ifelse(Publisher %in% Publisher., as.character(Publisher), "Others")) 
+game.lm <- game[, c(3:4, 11, 21, 23:26)] # Take columns for linear model
+
+training_set <- training_set %>%
+  mutate(Publisher.type = ifelse(Publisher %in% Publisher., as.character(Publisher), "Others")) 
+trainingSet.lm <- game[, c(3:4, 11, 21, 23:26)] # Take columns for linear model
+
+
+test_set <- test_set %>%
+  mutate(Publisher.type = ifelse(Publisher %in% Publisher., as.character(Publisher), "Others")) 
+testSet.lm <- game[, c(3:4, 11, 21, 23:26)] # Take columns for linear model
+
+model <- lm(Global.Sales.Log ~ ., data = trainingSet.lm)
+model1 <- lm(Global.Sales.Log ~ ., data = game.lm)
+
+```
+
+```{r}
+#Predict
+testpredict = predict(model1, newdata = game.lm, type = 'response')
+testpredict
+```
+
+```{r}
+library(Metrics)
+rmse(game.lm$Global.Sales.Log,testpredict)
+```
+
+```{r}
+#Ridge
+# Loaging the library
+library(glmnet)
+# Getting the independent variable
+x_var <- data.matrix(game.lm)
+# Getting the dependent variable
+y_var <- game.lm[, "Global.Sales.Log"]
+
+# Setting the range of lambda values
+lambda_seq <- 10^seq(2, -2, by = -.1)
+# Using glmnet function to build the ridge regression in r
+fit <- glmnet(x_var, y_var, nlambda = 25, alpha = 0, lambda  = lambda_seq)
+# Using glmnet function to build the lasso regression in r
+fit1 <- glmnet(x_var, y_var, nlambda = 25, alpha = 1, lambda  = lambda_seq)
+# Checking the model
+summary(fit1)
+
+
+# Using cross validation glmnet
+ridge_cv <- cv.glmnet(x_var, y_var, alpha = 0, lambda = lambda_seq)
+# Best lambda value
+best_lambda <- ridge_cv$lambda.min
+best_lambda
+```
+
+```{r}
+#Compare Lasso regression
+
+#Predict Global sales using lasso and ridge
+# Prediction and evaluation on test data
+# Compute R^2 from true and predicted values
+eval_results <- function(true, predicted, df) {
+  SSE <- sum((predicted - true)^2)
+  SST <- sum((true - mean(true))^2)
+  R_square <- 1 - SSE / SST
+  RMSE = sqrt(SSE/nrow(df))
+
+  
+  # Model performance metrics
+data.frame(
+  RMSE = RMSE,
+  Rsquare = R_square
+)
+  
+}
+predictionsRidge <- predict(fit, s = best_lambda, newx = x_var)
+eval_results(y_var, predictionsRidge, testSet.lm)
+
+predictionsLasso <- predict(fit1, s=best_lambda, newx = x_var)
+eval_results(y_var, predictionsLasso, testSet.lm)
+```
+
+```{r}
+library(rpart) #for fitting decision trees
+library(rpart.plot) #for plotting decision trees
+
+tree <- rpart(Global.Sales.Log ~ ., data=game.lm, control=rpart.control(cp=.0001))
+
+printcp(tree)
+
+#identify best cp value to use
+best <- tree$cptable[which.min(tree$cptable[,"xerror"]),"CP"]
+
+#produce a pruned tree based on the best cp value
+pruned_tree <- prune(tree, cp=best)
+
+#plot the pruned tree
+prp(pruned_tree,
+    faclen=0, #use full names for factor labels
+    extra=1, #display number of obs. for each terminal node
+    roundint=F, #don't round to integers in output
+    digits=5) #display 5 decimal places in output
+
+
+```
+
+```{r}
+library(Metrics)
+#Predicting using regression tree model
+testpredict2<-predict(pruned_tree, newdata=testSet.lm)
+rmse(game.lm$Global.Sales.Log,testpredict2)
+
+```
+Random Forests
+```{r}
+library(randomForest)
+rf <- randomForest(Global.Sales.Log ~ .,  data=trainingSet.lm)
+rf
+importance(rf)
+```
+Important Variable
+```{r}
+importance(rf)
+```
+Predict using the random forests
+```{r}
+pred = predict(rf, newdata=testSet.lm)
+rmse(game.lm$Global.Sales.Log,pred)
+
+```
+Bonus
+```{r}
+games$Sales_Level <- ifelse(games$Global_Sales>0.5,"high_sales","low_sales"
+                            )
+
+```
