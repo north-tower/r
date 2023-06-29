@@ -1,0 +1,133 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+library(readstata13)
+r13 <- read.dta13("washington_hw2.dta")
+```
+How many representatives are in the data set?
+```{r}
+nrow(r13)
+```
+What is the composition of the House in terms of sex and party (in percentages or proportions)?
+```{r}
+male<- subset(r13, female==0)
+(nrow(male)/nrow(r13))*100
+```
+Female
+```{r}
+female<- subset(r13, female==1)
+(nrow(female)/nrow(r13))*100
+```
+Democrats
+```{r}
+democrats<- subset(r13, party==1)
+(nrow(democrats)/nrow(r13))*100
+```
+Republicans
+```{r}
+republicans<- subset(r13, party==2)
+(nrow(republicans)/nrow(r13))*100
+```
+independents
+```{r}
+independents<- subset(r13, party==3)
+(nrow(independents)/nrow(r13))*100
+```
+Summary of aauw
+```{r}
+summary(r13$aauw)
+```
+What percentage of representatives have a score of 100?
+```{r}
+score100<- subset(r13, aauw==100)
+(nrow(score100)/nrow(r13))*100
+```
+What percentage of representatives have a score of 0?
+```{r}
+score0<- subset(r13, aauw==0)
+(nrow(score0)/nrow(r13))*100
+```
+ Run a regression
+```{r}
+model = lm(formula = aauw ~female, data = r13)
+summary(model)
+```
+ Provide a correct interpretation of the estimated coefficient
+A positive coefficient indicates that as the value of the independent variable increases, the mean of the dependent variable also tends to increase. A negative coefficient suggests that as the independent variable increases, the dependent variable tends to decrease.So in our case we can conclude that there is a positive correlation between the independent and the dependent variables.
+
+Provide a correct interpretation of the estimated intercept. Is the intercept a substantively
+meaningful quantity in this context?
+The intercept is meaningful in this context.
+
+Calculate the predicted values of the AAUW’s legislative score for male legislators and for
+female legislators.
+```{r}
+testpredict = predict(model, newdata = r13, type = 'response')
+summary(testpredict)
+```
+Compare these predicted values from (c) with the average AAUW legislative score for male
+legislators and the average AAUW legislative score for female legislators (you can calculate
+these conditional averages using mean()).
+```{r}
+male.mean<-mean(male$aauw)
+female.mean<-mean(female$aauw)
+```
+First, create a new binary variable called republican that is coded =1 if the legislator is a Republican and is coded=0 if the legislator is a Democrat or Independent
+```{r}
+z <- c(r13$party)
+r13$republican<-ifelse(r13$party==2,1,0)
+```
+Run a regression
+```{r}
+model1 = lm(formula = aauw ~female+republican, data = r13)
+summary(model1)
+
+testpredict4 = predict(model1, newdata = r13, type = 'response')
+summary(testpredict4)
+```
+4
+```{r}
+r13$female.republican<-ifelse(r13$female==1&r13$party==1,1,0)
+model2 = lm(formula = aauw ~female+republican+female.republican, data = r13)
+summary(model2)
+
+testpredict2 = predict(model2, newdata = r13, type = 'response')
+summary(testpredict2)
+
+```
+5
+```{r}
+model3 = lm(formula = aauw ~demvote, data = r13)
+summary(model3)
+
+```
+Scatter Plot
+```{r}
+plot( r13$demvote,r13$aauw, main = "Main title",
+     xlab = "X axis title", ylab = "Y axis title",
+     pch = 19, frame = FALSE)
+# Add regression line
+plot( r13$demvote,r13$aauw, main = "Main title",
+     xlab = "X axis title", ylab = "Y axis title",
+     pch = 19, frame = FALSE)
+abline(lm(aauw ~ demvote, data = r13), col = "blue")
+```
+e
+```{r}
+testpredict3 = predict(model3, newdata = r13, type = 'response')
+summary(testpredict3)
+```
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
