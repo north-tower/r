@@ -1,0 +1,41 @@
+---
+title: "Oil | Conflict Intensity | Global Militarization"
+output: html_notebook
+---
+
+
+```{r}
+library(dplyr)
+df<-read.csv("qog_std_2010_2020.csv")
+head(df)
+
+#Removing NA
+df2 = select(df, c(X,ccode,cname,year,ccodecow,ccodewb,ht_region,oecd_oilprod_t1, bti_ci, bicc_gmi))
+df2 <- na.omit(df2)
+
+#Data Visulaization
+library(ggplot2)
+library(RColorBrewer)
+ggplot(data = df2,
+       mapping = aes(x = oecd_oilprod_t1, y = bti_ci))  + geom_point(color = "cornflowerblue",
+             alpha = .7,
+             size = 3) + labs(title = "Relationship between Production of crude oil and Global militarization index",x = "Production of crude oil",y = "Global militarization index") +geom_smooth(method=lm)
+
+ggplot(data = df2,mapping = aes(y = bicc_gmi,x = bti_ci, ))  + geom_point(color = "purple",
+             alpha = .7,size = 3) +  labs(title = "Relationship between Conflict intensity and Global militarization index",y = "Global militarization index",x = "Conflict intensity") +  geom_smooth(method=lm)
+
+ggplot(data = df2,mapping = aes( x =oecd_oilprod_t1,y = bti_ci ))  + geom_point(color = "purple",
+             alpha = .7,size = 3) +  labs(title = "Relationship between Production of crude oil and Conflict intensity",x = "Production of crude oil",y = "Global militarization index") +  geom_smooth(method=lm)
+
+#Regression models
+model1 <- lm(bti_ci ~ bicc_gmi + oecd_oilprod_t1, data=df2)
+summary(model1)
+
+model2 <- lm(bicc_gmi ~ bti_ci + oecd_oilprod_t1, data=df2)
+summary(model2)
+
+model3 <- lm(oecd_oilprod_t1 ~ bicc_gmi + bti_ci , data=df2)
+summary(model3)
+```
+
+
