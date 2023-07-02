@@ -1,0 +1,98 @@
+---
+title: "Islands"
+output:
+  word_document: default
+  html_notebook: default
+---
+ 
+```{r}
+#Libraries
+options(warn=-1)
+library(car)
+library(MASS)
+library(gplots)
+library(readxl)
+library(ggplot2)
+library(tidyverse)
+```
+```{r}
+# Read the data
+df <- read_excel("id.xlsx")
+head(df)
+```
+
+```{r}
+str(df)
+
+```
+
+```{r}
+#Common summarises
+summary(df)
+```
+```{r}
+#Chi test
+df$IslandF<-as.factor(df$Island)
+df$ratioF<-as.factor(df$ratio)
+
+x<-xtabs(df$yield~df$IslandF+df$ratioF, data=df)
+
+chisq.test(x, correct=F)
+```
+
+```{r}
+#Data Visualization
+grp_by_island <- df  %>%
+  group_by(Island) %>%
+  summarise(yield = sum(yield))
+```
+```{r}
+ggplot(grp_by_island, aes(x=Island,y=yield)) + geom_col() + ggtitle("Plot of Island yield")
+```
+```{r}
+grp_by_ratio <- df %>% group_by(ratio) %>% summarise(yield = sum(yield))
+ggplot(grp_by_ratio, aes(x=ratio,y=yield)) + geom_col()+ ggtitle("Plot of yield and ratio")
+```
+
+```{r}
+#Box plot
+par(mfrow=c(1,2))
+
+boxplot(yield ~ Island, df)
+boxplot(yield~Island,df)
+boxplot(yield~ratio,df)
+
+```
+```{r}
+#Interaction Plot for indepth analysis
+par(mfrow=c(1,1))
+interaction.plot(x.factor = df$ratio,trace.factor = df$Island,
+                 response=df$yield,type="b",
+                 ylab="yield",
+                 xlab="ratio",
+                 legend=TRUE,main="Interction Plot",pch=c(1,18))
+
+```
+
+```{r}
+#Model
+model<-lm(yield~ratio + Island,data= df)
+summary(model)
+```
+```{r}
+#Anova
+anova(model)
+```
+The p value is not significant at alpha (0.05) thus we fail to reject the null hypothesis.
+```{r}
+#Turkey test
+TukeyHSD(aov(yield~ratio + Island,data = df))
+```
+```{r}
+#aov
+aov(formula = yield ~ ratio * Island, data = df)
+```
+```{r}
+output<-aov(yield~Island*ratio, df)
+model.tables(output, type="means")
+```
