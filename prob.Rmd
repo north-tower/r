@@ -1,0 +1,85 @@
+---
+title: "probabilistic model"
+output: html_notebook
+---
+
+
+```{r}
+options(warn=-1)
+library(stpm)
+```
+
+```{r}
+#Importing the dataset
+df <- read.csv("datos.csv")
+```
+
+```{r}
+#MEDIA: average daily compensation to victims of car accidents, in euros
+Z <- log(df$MEDIA)  
+u <- 0.3             
+sd <- 0.2             
+s <- min(log(df$MEDIA))             
+media <- c(s)         
+a <- 2                
+t <- 1:50            
+
+for(i in Z)
+{
+    S = s + s*(u/255 + sd/sqrt(255)*i)
+    media[a] <- S                        
+    s = S                                 
+    a = a + 1
+}
+
+plot(t,media,main="average daily compensation",xlab="t",ylab="MEDIA", type="hist",col="blue")
+summary(media)
+statistics<- c(sd(media),mean(media),(media[50]-media[1])/media[1]*100)
+names(statistics) <- c("Volatility","Average MEDIA)","Return %")
+print(statistics)
+```
+If the model encapsulates most of the deterministic features of the time series, our residual error series should appear to be a realisation of independent random variables from some probability distribution.
+```{r}
+# Frequencies and histograms MEDIA
+boundaries <- seq(from=min(media),to=max(media),by=2)    
+boundaries
+
+# Absolute frequencies
+table(cut(media,boundaries))    
+
+# Relative frequencies
+g<- table(cut(media,boundaries))/sum(table(cut(media,boundaries)))
+plot(g,main="MEDIA distribution")
+
+# Everything is fine if it sums to 1
+sum(table(cut(media,boundaries))/sum(table(cut(media,boundaries))))
+hist(media,freq=F,col="blue",main="MEDIA frequencies")
+
+```
+As you can see, returns are not  normally distributed, and that’s consistent with our assumptions and the methods we used to simulate the changes in MEDIA. It should be wise to note that drastic changes in MEDIA are rare under these assumptions.
+```{r}
+#Parameter estimation
+media <- simdata_discr(N=49)
+pars <- spm_discrete(media)
+pars
+
+```
+Generally speaking, this is an optimal control exercise: the optimization consists of maximizing an objective-function, depending on (forecasted) endogenous variables, given a set of user-constraints plus the constraints imposed by the econometric model equations.
+```{r}
+#Data simulation
+library (stpm)
+model.par <- list()
+model.par$a <- matrix(c(-0.05, 1e-3, 2e-3, -0.05), nrow=2, ncol=2, byrow=TRUE)
+model.par$f1 <- matrix(c(90, 35), nrow=1, ncol=2)
+model.par$Q <- matrix(c(1e-8, 1e-9, 1e-9, 1e-8), nrow=2, ncol=2, byrow=TRUE)
+model.par$f <- matrix(c(80, 27), nrow=1, ncol=2)
+model.par$b <- matrix(c(6, 2), nrow=2, ncol=2)
+model.par$mu0 <- 1e-5
+model.par$theta <- 0.11
+# Projection
+# Discrete-time model
+data <- spm_projection(model.par, N=100, ystart=c(80, 27), tstart=c(30, 60))
+
+head(data$data)
+```
+Data has been simulated using the stpm package.The SPM offers longitudinal data imputation with results that are better than from other imputation tools since it preserves data structure,
