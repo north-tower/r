@@ -1,0 +1,183 @@
+---
+title: "ATC"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r}
+#Libraries
+library(xml2)
+library(readxl)
+library(caret)
+library(tidyverse)
+library(sf)
+library(rvest)
+```
+
+PART I:Customer Data
+
+a)Parse the xml file
+```{r}
+
+data <- read_xml("medi_data.xml")
+
+#Extract the text for all child nodes
+Date_start <- xml_text(xml_find_all(data, xpath = "//root/record/Date_start"))
+Date_end <- xml_text(xml_find_all(data, xpath = "//root/record/Date_end"))
+id <- xml_text(xml_find_all(data, xpath = "//root/record/id"))
+Bezeichnung <- xml_text(xml_find_all(data, xpath = "//root/record/Bezeichnung"))
+ATC <- xml_text(xml_find_all(data, xpath = "//root/record/ATC"))
+SwissmedicNr <- xml_text(xml_find_all(data, xpath = "//root/record/SwissmedicNr"))
+Betrag <- xml_text(xml_find_all(data, xpath = "//root/record/Betrag"))
+lat <- xml_text(xml_find_all(data, xpath = "//root/record/lat"))
+lon <- xml_text(xml_find_all(data, xpath = "//root/record/lon"))
+
+# Create a tibble
+
+df <-  tibble(Date_start,Date_end,id,Bezeichnung,ATC,SwissmedicNr,Betrag,lat,lon)
+head(df)
+```
+
+b)Non fluid drugs
+```{r}
+df2 <- df %>%
+  filter(!str_detect(Bezeichnung, 'ml'))
+head(df2)
+```
+
+c)Seperate column Bezeichnung
+```{r}
+ S <- str_split(df2$Bezeichnung, pattern = "[a-zA-Z]+")
+head(S)
+```
+
+```{r}
+df2$mg <- sub(".*?([0-9]+).*", "\\1", df2$Bezeichnung,perl=TRUE)
+str(df2)
+```
+
+d) Miligrams per package
+```{r}
+df2$ATC <- as.factor(df2$ATC)
+df2 %>% group_by(ATC) %>%
+  summarise(Miligrams_per_package = sum(as.integer(mg)))
+
+```
+
+Mean expenditure
+```{r}
+df2 %>% group_by(ATC) %>%
+  summarise(Expenditure_per_miligram = mean(as.integer(Betrag)))
+```
+
+
+PART II: ATC data and plot
+a)Reading the data
+```{r}
+# accessing all the sheets 
+sheet = excel_sheets("Angststorung_Schlafmittel.xlsx")
+  
+# applying sheet names to dataframe names
+data_frame = lapply(setNames(sheet, sheet), 
+                    function(x) read_excel("Angststorung_Schlafmittel.xlsx", sheet=x))
+  
+# attaching all dataframes together
+data_frame = bind_rows(data_frame, .id="Sheet")
+  
+# printing data of all sheets
+head(data_frame)
+```
+
+b)Create Dummy
+```{r}
+data_frame2 <- subset(data_frame, select=c("ATC","Panic","Anxiety","Social_phobia"))
+dummy <- dummyVars(" ~. ", data=data_frame2)
+#perform one-hot encoding on data frame
+final_df <- data.frame(predict(dummy, newdata=data_frame2))
+```
+
+
+c)Joining data
+```{r}
+df_merged = merge(x = df2, y = data_frame, by = "ATC")
+head(df_merged)
+```
+
+d)Duration of Treatment
+```{r}
+df_merged$duration <- as.Date(df_merged$Date_end) - as.Date(df_merged$Date_start)
+
+```
+
+PART I:Web Scrapping
+```{r}
+#a)
+e <- as.factor(df_merged$ATC)
+e<- c("N05AH04","N05CC01","N05BA01","N05AH03")
+x<-c()
+for (code in e){
+  web_address <- paste0('https://www.whocc.no/atc_ddd_index/?code=', code, '&showdescription=no')
+  html_data <- read_html(web_address)
+  root_atc_code_name <- html_data %>%
+        html_nodes(css="tr") %>%
+        nth(2) %>% html_text
+  df <- as.data.frame(root_atc_code_name)
+
+  x <- append(x,root_atc_code_name )
+ 
+}
+```
+
+#b)
+```{r}
+df <- as.data.frame(x)
+df <- separate(df, col=x, into=c('ATC', 'Name', 'DDD', 'U', 'Adm. R'))
+head(df)
+```
+PART II : Tidy Data
+#a)
+```{r}
+df <- subset(df, `Adm. R` == 'O')
+df_merged2 = merge(x = df, y = df_merged, by = "ATC")
+
+```
+
+#b)
+```{r}
+
+agg_tbl <- df_merged2 %>% group_by(Name) %>% 
+  summarise(total_count=n(),Expenditure_per_miligram = mean(as.integer(Betrag)),
+            .groups = 'drop')
+
+df2 <- agg_tbl %>% as.data.frame()
+df2
+
+```
+
+#c)
+```{r}
+agg_tbl2 <- df_merged2 %>% group_by(Name) %>% 
+  summarise(duration=mean(duration),
+            .groups = 'drop')
+agg_tbl2
+```
+
+#d)
+```{r}
+df4 <- agg_tbl2 %>% as.data.frame()
+df4
+```
+
+PART III 
+#a)
+```{r}
+shapefile  <- read_sf("g1g18_875007427710482431.shp")
+head(shapefile)
+```
+#b)
+```{r}
+ggplot() + 
+  geom_sf(data = shapefile, size = 0.5, color = "black", fill = "white") + 
+  coord_sf()
+```
