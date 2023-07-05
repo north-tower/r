@@ -1,0 +1,339 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+
+Student Static Data
+```{r}
+setwd("C:/studentdropout/Student Retention Challenge Data/Student Static Data")
+stFall2011 <- read.csv("Fall 2011_ST.csv",header = T)
+stFall2012 <- read.csv("Fall 2012.csv",header = T)
+stFall2013 <- read.csv("Fall 2013.csv",header = T)
+stFall2014 <- read.csv("Fall 2014.csv",header = T)
+stFall2015 <- read.csv("Fall 2015.csv",header = T)
+stFall2016 <- read.csv("Fall 2016.csv",header = T)
+stSpring2012 <- read.csv("Spring 2012_ST.csv",header = T)
+stSpring2013 <- read.csv("Spring 2013.csv",header = T)
+stSpring2014 <- read.csv("Spring 2014.csv",header = T)
+stSpring2015 <- read.csv("Spring 2015.csv",header = T)
+stSpring2016 <- read.csv("Spring 2016.csv",header = T)
+studentStaticData <- rbind(stFall2011,stFall2012, stFall2013, stFall2014, stFall2015, stFall2016, stSpring2012, stSpring2013, stSpring2014, stSpring2015, 
+stSpring2016)
+head(studentStaticData)
+```
+Student Progress data
+```{r}
+setwd("C:/studentdropout/Student Retention Challenge Data/Student Progress Data")
+spFall2011<- read.csv("Fall 2011_SP.csv", header=TRUE)
+spFall2012 <- read.csv("Fall 2012_SP.csv", header=TRUE)
+spFall2013 <- read.csv("Fall 2013_SP.csv", header=TRUE)
+spFall2014 <- read.csv("Fall 2014_SP.csv", header=TRUE)
+spFall2015 <- read.csv("Fall 2015_SP.csv", header=TRUE)
+spFall2016 <- read.csv("Fall 2016_SP.csv", header=TRUE)
+spSpring2012 <- read.csv("Spring 2012_SP.csv", header=TRUE)
+spSpring2013 <- read.csv("Spring 2013_SP.csv", header=TRUE)
+spSpring2014 <- read.csv("Spring 2014_SP.csv", header=TRUE)
+spSpring2015 <- read.csv("Spring 2015_SP.csv", header=TRUE)
+spSpring2016 <- read.csv("Spring 2016_SP.csv", header=TRUE)
+spSpring2017 <- read.csv("Spring 2017_SP.csv", header=TRUE)
+spSum2012 <- read.csv("Sum 2012.csv", header=TRUE)
+spSum2013 <- read.csv("Sum 2013.csv", header=TRUE)
+spSum2014 <- read.csv("Sum 2014.csv", header=TRUE)
+spSum2015 <- read.csv("Sum 2015.csv", header=TRUE)
+spSum2016 <- read.csv("Sum 2016.csv", header=TRUE)
+spSum2017 <- read.csv("Sum 2017.csv", header=TRUE)
+studentProgressData_max <- rbind(spFall2011,spFall2012, spFall2013, spFall2014, spFall2015, spFall2016, spSpring2012, spSpring2013, spSpring2014, spSpring2015, spSpring2016,spSpring2017,spSum2012,spSum2013,spSum2014,spSum2015,spSum2016,spSum2017)
+head(studentProgressData_max)
+```
+Financial Aid Data
+```{r}
+setwd("C:/studentdropout/Student Retention Challenge Data/Student Financial Aid Data")
+financialData <- read.csv("2011-2017_Cohorts_Financial_Aid_and_Fafsa_Data.csv", header=TRUE)
+head(financialData)
+```
+Training labels
+```{r}
+setwd("C:/studentdropout/Student Retention Challenge Data")
+TrainLabels <- read.csv("DropoutTrainLabels.csv", header = T)
+```
+Test IDs
+```{r}
+setwd("C:/studentdropout/Student Retention Challenge Data/Test Data")
+testIds <- read.csv("TestIDs.csv", header = T)
+```
+Exploratory Data Analysis
+```{r}
+summary(financialData)
+summary(studentStaticData)
+summary(studentProgressData_max)
+```
+Data Cleaning for Financial Aid data
+```{r}
+financialData$Marital.Status <- sub("^$", "Single", financialData$Marital.Status)
+financialData$Housing <- sub("^$", "Off Campus", financialData$Housing)
+#Imputing the empty values of parent’s Highest Grade level with ‘Unknown’.
+financialData$Father.s.Highest.Grade.Level <- sub("^$", "Unknown", financialData$Father.s.Highest.Grade.Level)
+financialData$Mother.s.Highest.Grade.Level <- sub("^$", "Unknown", financialData$Mother.s.Highest.Grade.Level)
+library(imputeTS)
+financialData <- na_replace(financialData, 0)
+```
+Data Cleaning for Student Static Data
+```{r}
+#All the values for Campus variable are missing for all students, not significant in analysis
+studentStaticData$Campus <- NULL
+#Imputing the missing value with mean for birth year
+studentStaticData$BirthYear <- na_replace(studentStaticData$BirthYear, 1989)
+#Converting the different columns of ethnicity to one row for simplicity of analysis 
+for (i in (1:nrow(studentStaticData))){
+ if(studentStaticData$Hispanic[i] == 1) {
+ studentStaticData$Ethnicity[i] <- 'Hispanic'
+ } else if (studentStaticData$AmericanIndian[i] == 1) {
+ studentStaticData$Ethnicity[i] <- 'AmericanIndian'
+ } else if (studentStaticData$Asian[i] == 1) {
+ studentStaticData$Ethnicity[i] <- 'Asian'
+ } else if ( studentStaticData$Black[i] == 1) {
+ studentStaticData$Ethnicity[i] <- 'Black'
+ } else if ( studentStaticData$NativeHawaiian[i] == 1) {
+ studentStaticData$Ethnicity[i] <- 'NativeHawaiian'
+ } else if ( studentStaticData$White[i] == 1) {
+ studentStaticData$Ethnicity[i] <- 'White'
+ } else if ( studentStaticData$TwoOrMoreRace[i] == 1) {
+ studentStaticData$Ethnicity[i] <- 'TwoOrMoreRace'
+ } else {
+ studentStaticData$Ethnicity[i] <- 'Unknown'
+ } 
+}
+studentStaticData$Ethnicity <- as.factor(studentStaticData$Ethnicity)
+#Missing values for HSDip is imputed as 1,and the reason is to get a admission in college, student requires high school completion certificate
+studentStaticData$HSDip <- ifelse(studentStaticData$HSDip == -1, NA, studentStaticData$HSDip)
+studentStaticData$HSDip <- na_replace(studentStaticData$HSDip, 1)
+#Imputing themissing value of HSGPAUnwtd as zero
+studentStaticData$HSGPAUnwtd <- ifelse(studentStaticData$HSGPAUnwtd == -1, NA
+, studentStaticData$HSGPAUnwtd)
+studentStaticData$HSGPAUnwtd <- na_replace(studentStaticData$HSGPAUnwtd, 0)
+#All values of HSGPAWtd, FirstGen are missing, removing the column for analys
+is
+#All values of DualHSSummerEnroll are 0, which means Not past dual enrollment nor summer enrollee, removing column for analysis 
+studentStaticData$HSGPAWtd <- NULL
+studentStaticData$FirstGen <- NULL
+studentStaticData$DualHSSummerEnroll <- NULL
+#Imputed the missing values to zero of credit attempt transfer
+studentStaticData$NumColCredAttemptTransfer <- ifelse((studentStaticData$NumColCredAttemptTransfer == -1), NA, studentStaticData$NumColCredAttemptTransfer
+)
+studentStaticData$NumColCredAttemptTransfer <- na_replace(studentStaticData$NumColCredAttemptTransfer, 0)
+#Imputed the missing values to zero of credit attempt transfer
+studentStaticData$NumColCredAcceptTransfer <- ifelse((studentStaticData$NumColCredAcceptTransfer == -1), NA, studentStaticData$NumColCredAcceptTransfer)
+studentStaticData$NumColCredAcceptTransfer <- na_replace(studentStaticData$NumColCredAcceptTransfer, 0)
+#CumLoanAtEntry
+#All the values are missing or unknown, removing column for analysis
+studentStaticData$CumLoanAtEntry <- NULL
+```
+Data Cleaning for Student Progress Data
+```{r}
+#Imputing the missing values Major1 as zero
+studentProgressData_max$Major1 <- as.numeric(studentProgressData_max$Major1)
+studentProgressData_max$Major1 <- ifelse(studentProgressData_max$Major1 == -1
+, NA, studentProgressData_max$Major1)
+studentProgressData_max$Major1 <- na_replace(studentProgressData_max$Major1, 
+0)
+#All the values for Complete2 are zero, removing the column for analysis
+studentProgressData_max$Complete2 <- NULL
+#All the values for CIP2 are unknown, so removing the column for analysis
+studentProgressData_max$CompleteCIP2 <- NULL
+#All the values for TransferIntent are missing, so removing the column for analysis
+studentProgressData_max$TransferIntent <- NULL
+#All students are pursuing bachelor's degree, so removing the column for analysis
+studentProgressData_max$DegreeTypeSought <- NULL
+```
+Merge financial data, static data and progress data
+```{r}
+combinedStudentData <- merge(x = studentProgressData_max, y = studentStaticData,by = c("StudentID","Cohort","CohortTerm"))
+financialData.static.progress <- merge(x = combinedStudentData, y = financialData,
+ by.y = "ï..ID.with.leading", by.x = "StudentID")
+```
+Merge the train labels with combined dataset
+```{r}
+CombinedData.trainLabels <- merge(x = TrainLabels, y = financialData.static.progress,
+ by.y = "StudentID", by.x = "StudentID")
+CombinedData.trainLabels$Dropout <- as.factor(CombinedData.trainLabels$Dropout)
+barplot(table(CombinedData.trainLabels$Dropout))
+```
+Split dataset into training and testing
+```{r}
+library(caret)
+## Loading required package: lattice
+## Loading required package: ggplot2
+set.seed(31)
+intrain <- createDataPartition(CombinedData.trainLabels$Dropout,p=0.75,list =
+FALSE)
+train1 <- CombinedData.trainLabels[intrain,]
+test1 <- CombinedData.trainLabels[-intrain,]
+trctrl <- trainControl(method = "cv", number = 5)
+```
+Model Type: Classification Tree
+```{r}
+model1 <- train(Dropout ~ Cohort + CohortTerm + Gender + BirthYear + BirthMonth + HSDipYr
+ + HSGPAUnwtd + EnrollmentStatus + Ethnicity + HSDip + HSGPAUnwtd + NumColCredAttemptTransfer + NumColCredAcceptTransfer
+ + HighDeg + MathPlacement + EngPlacement 
+ + GatewayMathStatus + GatewayEnglishStatus 
+ + Marital.Status + Adjusted.Gross.Income + Parent.Adjusted.Gross.Income
+ + Father.s.Highest.Grade.Level + Mother.s.Highest.Grade.Level 
+ + Housing + X2012.Loan + X2012.Scholarship + X2012.Work.Study 
++ X2012.Grant
+ + X2013.Loan + X2013.Scholarship + X2013.Work.Study + X2013.Grant
+ + X2014.Loan + X2014.Scholarship + X2014.Work.Study + X2014.Grant
+ + X2015.Loan + X2015.Scholarship + X2015.Work.Study + X2015.Grant
+ + X2016.Loan + X2016.Scholarship + X2016.Work.Study + X2016.Grant
+ + X2017.Loan + X2017.Scholarship + X2017.Work.Study + X2017.Grant
+ + Term + AcademicYear + CompleteDevEnglish
+ + CompleteDevMath + Major2 + CompleteCIP1
+ + Major1 + Complete1 +  TermGPA + CumGPA
+ , data = train1, method = "rpart", trControl=trctrl)
+predictions1 <- predict(model1, newdata = test1)
+confusionMatrix(predictions1, test1$Dropout)$overall[1]
+
+bagImp1 <- varImp(model1, scale=TRUE)
+```
+Model Type: Kth Nearest Neighbor
+```{r}
+model2 <- train(Dropout ~ Cohort + CohortTerm + Gender + BirthYear + BirthMonth + HSDipYr
+ + HSGPAUnwtd + EnrollmentStatus + Ethnicity + HSDip + HSGPAUnwtd + NumColCredAttemptTransfer + NumColCredAcceptTransfer
+ + HighDeg + MathPlacement + EngPlacement 
+ + GatewayMathStatus + GatewayEnglishStatus 
+ + Marital.Status + Adjusted.Gross.Income + Parent.Adjusted.Gross.Income
+ + Father.s.Highest.Grade.Level + Mother.s.Highest.Grade.Level 
+ + Housing + X2012.Loan + X2012.Scholarship + X2012.Work.Study 
++ X2012.Grant
+ + X2013.Loan + X2013.Scholarship + X2013.Work.Study + X2013.Grant
+ + X2014.Loan + X2014.Scholarship + X2014.Work.Study + X2014.Grant
+ + X2015.Loan + X2015.Scholarship + X2015.Work.Study + X2015.Grant
+ + X2016.Loan + X2016.Scholarship + X2016.Work.Study + X2016.Grant
+ + X2017.Loan + X2017.Scholarship + X2017.Work.Study + X2017.Grant
+ + Term + AcademicYear + CompleteDevEnglish
+ + CompleteDevMath + Major2 + CompleteCIP1
+ + Major1 + Complete1 
+ + TermGPA + CumGPA
+ , data = train1, method = "knn", trControl=trctrl)
+predictions2 <- predict(model2, newdata = test1)
+confusionMatrix(predictions2, test1$Dropout)$overall[1]
+
+bagImp2 <- varImp(model2, scale=TRUE)
+```
+
+Model Type: Bagging
+```{r}
+model4 <- train(Dropout ~ Cohort + CohortTerm + Gender + BirthYear + BirthMonth + HSDipYr
+ + HSGPAUnwtd + EnrollmentStatus + Ethnicity + HSDip + HSGPAUnwtd + NumColCredAttemptTransfer + NumColCredAcceptTransfer
+ + HighDeg + MathPlacement + EngPlacement 
+ + GatewayMathStatus + GatewayEnglishStatus 
+ + Marital.Status + Adjusted.Gross.Income + Parent.Adjusted.Gross.Income
+ + Father.s.Highest.Grade.Level + Mother.s.Highest.Grade.Level 
+ + Housing + X2012.Loan + X2012.Scholarship + X2012.Work.Study 
++ X2012.Grant
+ + X2013.Loan + X2013.Scholarship + X2013.Work.Study + X2013.Grant
+ + X2014.Loan + X2014.Scholarship + X2014.Work.Study + X2014.Grant
+ + X2015.Loan + X2015.Scholarship + X2015.Work.Study + X2015.Grant
+ + X2016.Loan + X2016.Scholarship + X2016.Work.Study + X2016.Grant
+ + X2017.Loan + X2017.Scholarship + X2017.Work.Study + X2017.Grant
+ + Term + AcademicYear + CompleteDevEnglish
+ + CompleteDevMath + Major2 + CompleteCIP1
+ + Major1 + Complete1 
+ + TermGPA + CumGPA
+ , data = train1, method = "treebag", trControl=trctrl)
+predictions4 <- predict(model4, newdata = test1)
+confusionMatrix(predictions4, test1$Dropout)$overall[1]
+
+bagImp4 <- varImp(model4, scale=TRUE)
+```
+Model Type: Logistic Regression
+```{r}
+model5 <- train(Dropout ~ Cohort + CohortTerm + Gender + BirthYear + BirthMonth + HSDipYr
+ + HSGPAUnwtd + EnrollmentStatus + Ethnicity + HSDip + HSGPAUnwtd + NumColCredAttemptTransfer + NumColCredAcceptTransfer
+ + HighDeg + MathPlacement + EngPlacement 
+ + GatewayMathStatus + GatewayEnglishStatus 
+ + Marital.Status + Adjusted.Gross.Income + Parent.Adjusted.Gross.Income
+ + Father.s.Highest.Grade.Level + Mother.s.Highest.Grade.Level 
+ + Housing + X2012.Loan + X2012.Scholarship + X2012.Work.Study 
++ X2012.Grant
+ + X2013.Loan + X2013.Scholarship + X2013.Work.Study + X2013.Grant
+ + X2014.Loan + X2014.Scholarship + X2014.Work.Study + X2014.rant
+ + X2015.Loan + X2015.Scholarship + X2015.Work.Study + X2015.Grant
+ + X2016.Loan + X2016.Scholarship + X2016.Work.Study + X2016.Grant
+ + X2017.Loan + X2017.Scholarship + X2017.Work.Study + X2017.Grant
+ + Term + AcademicYear + CompleteDevEnglish
+ + CompleteDevMath + Major2 + CompleteCIP1
+ + Major1 + Complete1 
+ + TermGPA + CumGPA
+ , data = train1, method = "glm", family="binomial", trControl
+=trctrl)
+predictions5 <- predict(model5, newdata = test1)
+confusionMatrix(predictions5, test1$Dropout)$overall[1]
+
+bagImp5 <- varImp(model5, scale=TRUE)
+```
+Model Type: Model Stacking with random forest
+```{r}
+#Construct data frame with predictions
+predDF <- data.frame(predictions1,predictions2, predictions4, class = test1$Dropout)
+predDF$class <- as.factor(predDF$class)
+#Combine models using random forest
+combModFit.rf <- train(class ~ .
+ , method = "rf", data = predDF, distribution = 'binomial')
+## note: only 2 unique complexity parameters in default grid. Truncating the grid to 2 .
+combPred.rf <- predict(combModFit.rf, predDF)
+confusionMatrix(combPred.rf, predDF$class)$overall[1]
+
+```
+ROC curve
+```{r}
+library(pROC)
+## Type 'citation("pROC")' for a citation.
+## 
+## Attaching package: 'pROC'
+## The following objects are masked from 'package:stats':
+## 
+## cov, smooth, var
+roccurve1 <- roc(test1$Dropout ~ as.numeric(predictions1))
+roccurve2 <- roc(test1$Dropout ~ as.numeric(predictions2))
+roccurve4 <- roc(test1$Dropout ~ as.numeric(predictions4))
+roccurve5 <- roc(test1$Dropout ~ as.numeric(predictions5))
+#ROC Curve for model stacking
+roccurve <- roc(predDF$class ~ as.numeric(combPred.rf))
+roccurve$auc
+## Area under the curve: 0.9517
+roccurve$sensitivities
+## [1] 1.00000 0.93153 0.00000
+roccurve$specificities
+## [1] 0.0000000 0.9718235 1.0000000
+plot(roccurve1, print.auc = TRUE, col = "blue",print.auc.y = .7)
+plot(roccurve2, print.auc = TRUE, 
+ col = "green", print.auc.y = .6, add = TRUE)
+plot(roccurve4, print.auc = TRUE, 
+ col = "navy blue", print.auc.y = .8, add = TRUE)
+plot(roccurve5, print.auc = TRUE, 
+ col = "orange", print.auc.y = .5, add = TRUE)
+plot(roccurve, print.auc = TRUE, 
+ col = "red", print.auc.y = .9, add = TRUE)
+```
+Results
+```{r}
+financialData.static.testIDs <- merge(x = testIds, y = financialData.static.p
+rogress,
+ by.y = "StudentID", by.x = "StudentID")
+predictions1 <- predict(model1, newdata = financialData.static.testIDs)
+predictions2 <- predict(model2, newdata = financialData.static.testIDs)
+predictions4 <- predict(model4, newdata = financialData.static.testIDs)
+test_predDF <- data.frame( predictions1, predictions2, predictions4)
+test_combPred.rf <- predict(combModFit.rf,newdata = test_predDF)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
