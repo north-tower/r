@@ -1,0 +1,110 @@
+---
+title: "Element 3"
+output: html_notebook
+---
+
+
+
+```{r}
+df <- read.csv("Attachment_1638128243.csv", header=TRUE)
+df
+#NAS
+df[is.na(df)] = 0
+
+#Percentile
+quantile(df,.7,na.rm=TRUE)
+
+#Mean
+mean.result = mean(df$Claim.size)
+#stadard deviation
+sd.result = sqrt(var(df$Claim.size))
+
+#simulation
+set.seed(5)
+
+# normal
+x <- rnorm(1000, mean.result, sd.result)
+
+#Skewness and Kurtosis
+library(moments)
+skewness(x)
+
+kurtosis(x)
+
+#Skewness
+library(ggplot2)
+datasim <- data.frame(x)
+density_plot <- 
+  datasim %>% 
+  ggplot(aes(x = x)) +
+  stat_density(geom = "line", alpha = 1, colour = "cornflowerblue")
+
+density_plot
+
+shaded_area_data <- 
+  ggplot_build(density_plot)$data[[1]] %>% 
+  filter(x < mean(datasim$x))
+
+density_plot_shaded <- 
+  density_plot + 
+  geom_area(data = shaded_area_data, aes(x = x, y = y), fill="pink", alpha = 0.5)
+
+density_plot_shaded
+
+median <- median(datasim$x)
+mean <- mean(datasim$x)
+
+median_line_data <- 
+  ggplot_build(density_plot)$data[[1]] %>% 
+  filter(x <= median)
+
+density_plot_shaded +
+  
+  geom_segment(data = shaded_area_data, aes(x = mean, y = 0, xend = mean, yend = density), 
+               color = "red", linetype = "dotted") +
+  
+  geom_segment(data = median_line_data, aes(x = median, y = 0, xend = median, yend = density), 
+               color = "black", linetype = "dotted") + 
+  ggtitle("Density Plot Illustrating Skewness")
+
+
+#Kurtosis
+library(tidyverse)
+mean <- mean(datasim$x)
+
+sd_pos <-  mean + (2 * sd(datasim$x))
+
+sd_neg <- mean - (2 * sd(datasim$x))
+
+sd_pos_shaded_area <- 
+  ggplot_build(density_plot)$data[[1]] %>% 
+  filter(x > sd_pos )
+
+sd_neg_shaded_area <- 
+  ggplot_build(density_plot)$data[[1]] %>% 
+  filter(x < sd_neg)
+
+density_plot <-  
+    density_plot + 
+    geom_area(data = sd_pos_shaded_area, aes(x = x, y = y), fill="pink", alpha = 0.5) +
+    geom_area(data = sd_neg_shaded_area, aes(x = x, y = y), fill="pink", alpha = 0.5) +
+    scale_x_continuous(breaks = scales::pretty_breaks(n = 10))
+  
+density_plot
+
+mean <- mean(datasim$x)
+
+mean_line_data <- 
+  ggplot_build(density_plot)$data[[1]] %>% 
+  filter(x <= mean)
+
+density_plot + geom_segment(data = median_line_data, aes(x = median, y = 0, xend = median, yend = density), 
+               color = "black", linetype = "dotted")+ 
+  ggtitle("Density Plot Illustrating Kurtosis")
+  
+
+
+
+```
+The critical value of Zg2 is approximately 2. (This is a two-tailed test of excess kurtosis ≠ 0 at approximately the 0.05 significance level.)
+
