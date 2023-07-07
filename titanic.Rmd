@@ -1,0 +1,272 @@
+---
+title: "Titanic"
+output:
+  html_document:
+    df_print: paged
+---
+
+(a) Load the provided data into R using the read.csv function. Ensure that the columns
+Pclass, Sex and Embarked are of class factor (HINT: lapply). Assuming your data frame is
+named df, show the output of executing the command str(df).
+```{r}
+df<-read.csv("titanic.csv",header=TRUE)
+d<-lapply(df,factor)
+str(df)
+```
+(b) Find the total number of NAs in each column. Then, replace each NA in the Age
+column (only) by setting them equal to the median of the non-NA values in the column.
+````{r}
+#Getting the total number of NA's in each column
+colSums(is.na(df))
+#imputating na values 
+df$Age[is.na(df$Age)]<-median(df$Age,na.rm=TRUE)
+colSums(is.na(df))
+```
+(c) Create a training set composed of 75% of the rows selected randomly, with a testing set
+composed of the remaining 25% (use the createDataPartition function in the caret package
+setting the attribute p to the appropriate proportion, and retrieve the column Resample1 from
+the result to get the randomly selected indices).
+```{r}
+library(caret)
+library(dplyr) 
+training <- df$Pclass %>% 
+  createDataPartition(p=.75, list=FALSE)
+```
+(d) Use the naiveBayes function in the e1071 package, and learn a classifier that determines if a passenger’s survival is “1” or “0”
+```{r}
+library(e1071)
+naive_model <- naiveBayes(Survived ~ ., data = training, laplace = 1)
+```
+(e) Use the tree function in the tree package to learn a decision tree classifier to to
+determine a passenger’s survival
+```{r}
+library(rpart)
+library(rpart.plot)
+fit <- rpart(Survived~., data = df, method = 'class')
+rpart.plot(fit, extra = 106)
+```
+(f)Report the Confusion matrix for both trained models. What percentage of the test
+data was correctly classified for each model?
+```{r}
+
+df$Survived<-as.factor(df$Survived)
+naive_model <- naiveBayes(Survived ~ ., data = df, laplace = 1)
+pred<-predict(naive_model, df[6:10,])
+table(predict(naive_model, df[6:10,]), df[6:10, 5])
+```
+(g)Use the ROCR package to create a single ROC plot showing the two classifiers (Naive
+Bayes in blue and decision tree in red). Make sure that plots are properly colored and labeled.
+Based on the Area Under the Curve measure, which of the two classifiers works better for the
+given data? 
+```{r}
+library(ROCR)
+data(ROCR.simple)
+dfq <- data.frame(ROCR.simple)
+pred <- prediction(dfq$predictions, dfq$labels)
+perf <- performance(pred,"tpr","fpr")
+plot(perf,colorize=TRUE)
+```
+(h)Compare the performance of the classifiers by varying the training/testing data proportion at 25%/75% and 50%/50% (vs. 75%/25%, which was performed above)
+```{r}
+#1 random selection of 25% of the rows for training, and the other 75% for testing
+library(dplyr) 
+
+training1 <- df$Pclass %>% createDataPartition(p=.25, list=FALSE)
+#Naive
+naive_model1 <- naiveBayes(Survived ~ ., data = training, laplace = 1)
+
+
+
+#2random selection of 50% of the rows for training, and the other 50% for testing
+training2 <- df$Pclass %>% 
+  createDataPartition(p=.5, list=FALSE)
+#Naive
+naive_model1 <- naiveBayes(Survived ~ ., data = training, laplace = 1)
+```
+(i)For each of the two new data partitions we need to train a separate decision tree.
+```{r}
+#Decision Tree
+
+fit1 <- rpart(Survived~., data = df, method = 'class')
+rpart.plot(fit1, extra = 106)
+fit2<- rpart(Survived~., data = df, method = 'class')
+rpart.plot(fit1, extra = 106)
+```
+(j) Report the confusion matrix and the ROC plot for the model predicted with each
+of the different partitions: 25%/75% vs. 50%/50% vs. 75%/25% (original partition). What
+percentage of the test data was correctly classified for each partition level? Which one performed
+best for each of the tested metrics? Given this analysis, what partition level of the dataset would
+you pick in this case?
+25% was classified correctly.75%/25% performed best.I would choose a partition level of 75%/25%
+
+Question 2
+```{r}
+df[,c("Pclass")]=as.numeric(as.character(df[,c("Pclass")]))
+levels(df[,c("Embarked")])[1]="U"
+```
+
+There is signifacant association between the two columns the p value of sex variable is below the significant level of 0.05
+
+
+(b)A categorical variable consists of discrete values that don’t have an ordered relationship. One-hot encoding is the process of converting a categorical variable into multiple variables,
+each with a value of 1 or 0. Read this reference one-hot-encoding-in-r and perform a one-hot
+encoding on the Sex and Embarked columns. 
+```{r}
+set.seed(555)
+df1 <- data.frame(Sex=c(df$Sex),Embarked=c(df$Embarked))
+dummy <- dummyVars(" ~ .", data=df1)
+newdata <- data.frame(predict(dummy, newdata = df1))
+```
+
+(c)Using the get dist() function from package factoextra, compute the Jaccard dissimilarity for the converted nominal columnsSex, Embarked. The formula for the Jaccard coefficient could be found at https://www.ims.uni-stuttgart.de/documents/team/schulte/theses/phd/algorithm.pdf. Note that the one-hot encoding from above will result in a 6 column data frame where the first 2 columns are the results for column Sex and the last 4 columns are the results for column Embarked. Compute the Jaccard dissimlarity for columns Sex andEmbarked separately. 
+```{r}
+#Sex Column
+a <- c(newdata$Sexfemale)
+b <- c(newdata$Sexmale)
+
+jaccard <- function(a, b) {
+    intersection = length(intersect(a, b))
+    union = length(a) + length(b) - intersection
+    return (intersection/union)
+}
+
+jaccard(a,b)
+
+#Embarked column
+x<-c(newdata$EmbarkedC)
+y<-c(newdata$EmbarkedQ)
+z<-c(newdata$EmbarkedS)
+jaccard(y,z)
+```
+
+(d)Using get dist() function from package factoextra, compute the Euclidean and Kendall distances for the numeric columns (remember to exclude column Survived). Maximum 3 lines of code.
+```{r}
+library(factoextra)
+nonvars = c("Survived","Embarked","Sex")
+dft = df[ , !(names(df) %in% nonvars) ]
+res.dist <- get_dist(dft, stand = TRUE, method = "euclidean")
+res.dist1 <- get_dist(dft, stand = TRUE, method = "kendall")
+```
+
+(e) Choose the optimal number of clusters.
+1.Read this article k-medoids and write down one drawback of kmeans clustering that was mentioned.
+Kmeans are sensitive to noise and outliers because of the use of means
+
+2. Fill the missing parts in the following code, which uses the fviz nbclust function in package factoextra to find the optimal number of clusters using a k-medoid clustering from calculating total within sum-of-squares (Elbow method).
+##compute the weighted sum of three distance matrices,
+weights are equally weighted(each original column occupied 1/8 weight)
+my.d = 0.75*d.interval.kd + 0.125*d.sex + 0.125*d.eb
+##recombine the numeric and categorical data
+my_data = cbind.data.frame(interval.data,nominal.onehot)
+fviz_nbclust(my_data,kmeans , method ='wss')+geom_vline(xintercept = 4, linetype = 2)+
+  labs(subtitle = "Elbow method"
+  
+3. Use one sentence to explain how Elbow method works.
+
+At the point when we plot the WCSS with the K worth, the plot resembles an Elbow,As the quantity of bunches expands, the WCSS worth will begin to diminish.
+
+(f)Conduct k-medoid clustering using function pam from package cluster with k = 2, if
+cluster 1 corresponds to those not survived and cluster 2 corresponds to those survived. Calculate
+the percentage of correctly assigned people according to your clustering result.
+```{r}
+library(cluster)
+pam.res <- pam(df, 2)
+pam.res$medoids
+```
+Question 3
+The following is a t-SNE plot(https://en.wikipedia.org/wiki/T-distributed stochastic_neighbor_embedding) for the clustering result. The two bigger black dots are the corresponding medoids for each cluster. Evaluate your answer from above using this visualization method. Does your answer align with this visualization? If not, what could be an alternative optimal number of clusters?
+My answer does not align with this observation.The optimal number of clusters could be 3
+
+Question 4
+Assuming that the name to the encrypted is TOM_JIM
+
+USING ONE TIME PAD:
+
+Step 1: Key Generation:
+
+We randomly choose a list of characters from the table. The number of characters must be greater than or equal to the number of characters in your name ( in this case 7. Since the name we assumed id TOM_JIM).
+
+Key = MYOTKEY (randomly chosen)
+
+Now substitute these letters of the key with their corresponding numbers from the table.
+
+MYOTKEY = 13251520110525
+
+This key and table is shared with both the sender and receiver.
+
+Step 2: Encryption:
+
+Now substitute the letters of your name with the corresponding numbers from the table.
+
+TOM_JIM = 20151000100913
+
+Add the numbers obtained from the name with the key using Fibonacci addition. {Procedure for Fibonacci addition is given in the text itself}
+
+TOM_JIM + MYOTKEY=
+
+20151000100913 + 13251520110525 = 33302820210438. This is ciphertext L1.
+
+Now this has to encrypted using RSA Algorithm:
+
+USING RSA
+Steps:
+
+For RSA we need two values p and q which are given in the question. p=2143 and q=3257
+
+Now we calculate n=p*q
+
+n= 2143*3257 = 6979751
+
+Now we calculate t = (p-1)(q-1)
+
+t=(2143-1)(3257-1) = 21423256 = 6974352
+
+Now we have a choose an integer prime number ‘e’ such that e is relatively prime to t
+
+We choose e =13 ( we need to do some trial and error to figure this out)
+
+Now we calculate d which is the inverse of (e mod t)
+
+d=inv(13 mod 6974352) = 55794817
+
+{To verify the value of d, perform (d*e) mod t. The result should be =1}
+
+Now we have all the values required for the encryption.
+
+Encryption using RSA:
+
+L2 = L1e mod n [ This is the equation for RSA encryption]
+
+L2= 3330282021043813 mod 6979751
+
+L2= 289276 [ This is the encrypted ciphertext from RSA. This will be transmitted to the receiver. And using this and the other values that we obtained the decryption will be done in the receiving end]
+
+Decryption using RSA:
+
+L3 = L2dmod n [ This is the equation for RSA decryption]
+
+L3 = 28927655794817? mod 6979751
+
+L3 = 33302820210438
+
+Now we got back L3 which is equal to L1
+
+Now we have to perform the decryption process of ONE TIME PAD on L3 to get L4 which will be the initially encoded message.
+
+Decryption using ONE TIME PAD:
+
+In order to perform decryption using ONE TIME PAD we need to perform Fibonacci Subtraction of L3 and the Key of ONE TIME PAD. {Procedure for Fibonacci subtraction is given in the text itself}
+
+L4 = (L3) minus (Key of ONE TIME PAD)
+
+L4 = 33302820210438 - 13251520110525
+
+L4 = 20151000100913
+
+So we get L4 which is equal to our message that was encoded in the very beginning. If we translate it using the table we get:
+
+L4 = 20151000100913
+
+L4= TOM_JIM
+
+Hence, we have successfully encrypted the name using ONE TIME PAD and RSA and then decrypted it using RSA and ONE TIME PAD again.
