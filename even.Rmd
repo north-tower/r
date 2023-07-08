@@ -1,0 +1,107 @@
+---
+title: "Evenness"
+output:
+  html_document:
+    df_print: paged
+---
+
+#Reading the file
+```{r}
+df<-read.csv('plValsUSA_B.csv')
+df[is.na(df)] = 0
+head(df)
+```
+#Matrix A
+```{r}
+A <- as.matrix(df)
+A1<-A[1:10,]
+```
+#Vector X0
+```{r}
+X0<-c(df$Production..ton.)
+X0
+```
+#Vector land
+```{r}
+land<-c(df$Area.harvested..ha.)
+```
+#Total Land
+```{r}
+total_land<-sum(land,na.rm=TRUE)
+total_land
+```
+#Vector yield
+```{r}
+yield<-c(df$Yield..hg.ha.)
+```
+#Vector BO
+#Removing NA values
+```{r}
+a<-A1[,-c(1,47,50,52,54,56,58,59,67)]
+```
+#Making vector X0 an interger
+```{r}
+v2 <- as.integer(X0)
+```
+#Making matrix A an interger
+```{r}
+v3<- as.integer(a)
+```
+#Making vector BO
+```{r}
+B0<-v3*v2
+
+```
+Shannon
+```{r}
+library("vegan")
+function1<-diversity(df[-c(1,47,50,52,54,56,58,59,67)], index="shannon")
+```
+Simpson
+```{r}
+function2<- diversity(df[-c(1,47,50,52,54,56,58,59,67)], index="simpson")
+```
+Optimize
+Max  (x) function1/function2 
+```{r}
+x<-(function1/function2)
+max(x)
+```
+matrix_A*X=b1  b1>= b0
+```{r}
+B1<-v3*x
+
+#Compare B0
+compare <- B1>= B0
+```
+x/yield= land2   land2=<land
+```{r}
+land2<-x/yield
+
+compare1 <- land2<=land
+```
+save results into csv file
+```{r}
+B1<- matrix(B1, nrow = 61)
+df <- data.frame(X = c(x),
+                 B1 = c(B1)
+                 )
+write.csv(df,"even.csv", row.names = FALSE)
+```
+Bar Figure1
+```{r}
+pointsq <- df$Kcal
+barplot(pointsq,x,
+xlab="x",ylab="kcal",col="blue",
+main="Species/x,X0",border="red"
+)
+```
+Bar Figure 2
+```{r}
+pointsq <- df$Kcal
+barplot(pointsq,B1,
+xlab="x",ylab="kcal",col="blue",
+main="Species/b1",border="red"
+)
+```
+
