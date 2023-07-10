@@ -1,0 +1,393 @@
+---
+title: "Final Case Analysis (EPA)"
+output: 
+  pdf_document: 
+    fig_height: 4
+    toc: no
+  word_document: 
+    fig_height: 4
+    toc: yes
+  html_document: 
+    toc: yes
+---
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Installing pre-required packages
+```{r packages}
+
+install.packages("tidyverse")
+install.packages("reshape")
+library(tidyverse)
+library(reshape)
+```
+## Reading Data Files:
+```{r data}
+## Loading the data files into Dataframes
+dat1 <- read.csv("./data2010.csv",header=TRUE)
+dat2 <- read.csv("./data2011.csv",header=TRUE)
+dat3 <- read.csv("./data2012.csv",header=TRUE)
+dat4 <- read.csv("./data2014.csv",header=TRUE)
+dat5 <- read.csv("./data2015.csv",header=TRUE)
+dat6 <- read.csv("./data2016.csv",header=TRUE)
+dat7 <- read.csv("./data2018.csv",header=TRUE)
+dat8 <- read.csv("./data2019.csv",header=TRUE)
+dat9 <- read.csv("./data2020.csv",header=TRUE)
+
+## preparing data for the first time period
+data1 <- do.call("rbind", list(dat1, dat2, dat3))
+
+## preparing data for the second time period
+data2 <- do.call("rbind", list(dat4, dat5, dat6))
+
+## preparing data for the third time period
+data3 <- do.call("rbind", list(dat7, dat8, dat9))
+
+```
+## Handling Outliers:
+```{r Descriptive Analysis}
+# Checking for outliers for each of numeric columns
+# First Time Period
+plot_figures <- function(data){
+  ggplot(
+  data = melt(data[c("Test.Veh.Displacement..L.", 
+                     "X..of.Cylinders.and.Rotors", "X..of.Gears", 
+                     "Axle.Ratio")]), 
+  aes(x=value, y=variable)) + 
+  geom_boxplot(aes(fill=variable, color=variable))
+
+  ggplot(
+    data = melt(data[c("N.V.Ratio", "Test.Fuel.Type.Cd", "RND_ADJ_FE", 
+                        "FE.Bag.1", "FE.Bag.2", "FE.Bag.3", "Target.Coef.A..lbf.",
+                        "Set.Coef.A..lbf.")]), 
+    aes(x=value, y=variable)) + 
+    geom_boxplot(aes(fill=variable, color=variable))
+  
+  ggplot(
+    data = melt(data[c("THC..g.mi.", "CO..g.mi.", "NOx..g.mi.", "CH4..g.mi.", 
+                        "N2O..g.mi.", "Target.Coef.C..lbf.mph..2.", 
+                        "Set.Coef.C..lbf.mph..2.")]), 
+    aes(x=value, y=variable))+ 
+    geom_boxplot(aes(fill=variable, color=variable))
+}
+plot_figures(data1)
+plot_figures(data2)
+plot_figures(data3)
+
+```
+```{r Data Cleaning NA treatment}
+# Dropping missing values for the corresponding columns
+data1 <- na.omit(data1)
+data2 <- na.omit(data2)
+data3 <- na.omit(data3)
+
+```
+
+```{r Missing Values After Omit}
+# After droping the missing values, no column names should be displayed
+list_na <- colnames(data1)[ apply(data1,2, anyNA) ]
+print(list_na)
+
+list_na <- colnames(data2)[ apply(data2,2, anyNA) ]
+print(list_na)
+
+list_na <- colnames(data3)[ apply(data3,2, anyNA) ]
+print(list_na)
+
+```
+## Data Cleaning:
+```{r Data Cleaning}
+# Replacing the outliers with Upper Bound and Lower Bound
+replace_outliers <- function(data){
+  data$Test.Veh.Displacement..L.[data$Test.Veh.Displacement..L. > 7.9] <-     
+    median(data$Test.Veh.Displacement..L.) 
+  data$Rated.Horsepower[data$Rated.Horsepower > 520] <-  
+    mean(data$Rated.Horsepower)
+  data$X..of.Cylinders.and.Rotors[data$X..of.Cylinders.and.Rotors == 16] <-  
+    mean(data$X..of.Cylinders.and.Rotors)
+  data$Equivalent.Test.Weight..lbs..[data$Equivalent.Test.Weight..lbs.. > 6000] <- 
+    6000
+  data$Axle.Ratio[data$Axle.Ratio < 2.4] <- 2.4
+  data$Axle.Ratio[data$Axle.Ratio > 5] <- 5
+  data$N.V.Ratio[data$N.V.Ratio > 46] <- 46
+  data$N.V.Ratio[data$N.V.Ratio < 20] <- 20
+  data$Test.Fuel.Type.Cd[data$Test.Fuel.Type.Cd > 61] <- 61
+  data$THC..g.mi.[data$THC..g.mi. > 0.2] <- 0.2
+  data$CO..g.mi.[data$CO..g.mi. > 2] <- 2
+  data$CO..g.mi.[data$CO..g.mi. > 1] <- 1
+  data$CO2..g.mi.[data$CO2..g.mi. > 601] <- 601
+  data$NOx..g.mi.[data$NOx..g.mi. > 0.03] <- 0.03
+  data$CH4..g.mi.[data$CH4..g.mi. > 0.01] <- 0.01
+  data$N2O..g.mi.[data$N2O..g.mi. < 0.00992] <- 0.00992
+  data$FE.Bag.1[data$FE.Bag.1 < 18.9] <- 18.9
+  data$FE.Bag.1[data$FE.Bag.1 > 24] <- 24
+  data$FE.Bag.2[data$FE.Bag.2 < 14.9] <- 14.9
+  data$FE.Bag.2[data$FE.Bag.2 > 40] <- 40
+  data$FE.Bag.3[data$FE.Bag.3 < 14.9] <- 14.9
+  data$FE.Bag.3[data$FE.Bag.3 > 40] <- 40
+  data$Target.Coef.A..lbf.[data$Target.Coef.A..lbf. > 60.5] <- 60.5
+  data$Target.Coef.A..lbf.[data$Target.Coef.A..lbf. < 15.31] <- 15.31
+  data$Target.Coef.B..lbf.mph.[data$Target.Coef.B..lbf.mph. < -0.479] <- -0.479
+  data$Target.Coef.B..lbf.mph.[data$Target.Coef.B..lbf.mph. > 1.004] <- 1.004
+  data$Target.Coef.C..lbf.mph..2.[data$Target.Coef.C..lbf.mph..2. > 0.036] <- 
+    0.036
+  data$Target.Coef.C..lbf.mph..2.[data$Target.Coef.C..lbf.mph..2. < 0.01] <- 
+    0.009997
+  data$Set.Coef.A..lbf.[data$Set.Coef.A..lbf. > 36.18] <- 36.18
+  data$Set.Coef.A..lbf.[data$Set.Coef.A..lbf. < -8] <- -8
+  data$Set.Coef.B..lbf.mph.[data$Set.Coef.B..lbf.mph. > 0.78] <- 0.78
+  data$Set.Coef.B..lbf.mph.[data$Set.Coef.B..lbf.mph. < -0.5] <- -0.5
+  data$Set.Coef.C..lbf.mph..2.[data$Set.Coef.C..lbf.mph..2. > 0.041] <- 0.041
+  data$Set.Coef.C..lbf.mph..2.[data$Set.Coef.C..lbf.mph..2. < 0.004] <- 0.004
+}
+replace_outliers(data1)
+replace_outliers(data2)
+replace_outliers(data3)
+```
+## Dimension Reduction:
+```{r PCA}
+# Using Principle-Component Analysis to get the 8 variable which explain the 
+# most variance
+
+# First Time Period
+data1_pca <- prcomp(data1[, c(6,8,12,16:18,21,24:29,31:39)], rank.=8,center =
+                      TRUE,  scale. = TRUE)
+
+new_data1 <- cbind(data1_pca$x, data1[30])
+
+# Second Time Period
+data2_pca <- prcomp(data2[, c(6,8,12,16:18,21,24:29,31:39)], rank.=8,center = 
+ TRUE,scale. = TRUE)
+
+new_data2 <- cbind(data2_pca$x, data2[30])
+
+# Third Time Period
+data3_pca <- prcomp(data3[, c(6,8,12,16:18,21,24:29,31:39)], rank.=8,center = 
+  TRUE,scale. = TRUE)
+
+new_data3 <- cbind(data3_pca$x, data3[30])
+
+```
+
+## Grouping of Similar Vehicles:
+```{r Grouping}
+# Create 8 subgroups for each of the time periods based on Horse Power and 
+# First Time Period
+data1_group1 <- subset(data1, (data1$Rated.Horsepower < 260 & data1$RND_ADJ_FE  
+                               < 27 & data1$THC..g.mi. < 0.02 ))
+data1_group2 <- subset(data1, (data1$Rated.Horsepower < 260 & data1$RND_ADJ_FE  
+                               < 27 & 
+data1$THC..g.mi. > 0.02 ))
+data1_group3 <- subset(data1, (data1$Rated.Horsepower < 260 & data1$RND_ADJ_FE  
+                               > 27 & 
+data1$THC..g.mi. < 0.02 ))
+data1_group4 <- subset(data1, (data1$Rated.Horsepower < 260 & data1$RND_ADJ_FE  
+                               > 27 & 
+data1$THC..g.mi. > 0.02 ))
+data1_group5 <- subset(data1, (data1$Rated.Horsepower > 260 & data1$RND_ADJ_FE  
+                               < 27 & 
+data1$THC..g.mi. < 0.02 ))
+data1_group6 <- subset(data1, (data1$Rated.Horsepower > 260 & data1$RND_ADJ_FE  
+                               < 27 & 
+data1$THC..g.mi. > 0.02 ))
+data1_group7 <- subset(data1, (data1$Rated.Horsepower > 260 & data1$RND_ADJ_FE  
+                               > 27 & 
+data1$THC..g.mi. < 0.02 ))
+data1_group8 <- subset(data1, (data1$Rated.Horsepower > 260 & data1$RND_ADJ_FE  
+                               > 27 & 
+data1$THC..g.mi. > 0.02 ))
+
+
+# Second Time Period
+data2_group1 <- subset(data2, (data2$Rated.Horsepower < 260 & data2$RND_ADJ_FE  
+                               < 27 & 
+data2$THC..g.mi. < 0.02 ))
+data2_group2 <- subset(data2, (data2$Rated.Horsepower < 260 & data2$RND_ADJ_FE  
+                               < 27 & 
+data2$THC..g.mi. > 0.02 ))
+data2_group3 <- subset(data2, (data2$Rated.Horsepower < 260 & data2$RND_ADJ_FE  
+                               > 27 & 
+data2$THC..g.mi. < 0.02 ))
+data2_group4 <- subset(data2, (data2$Rated.Horsepower < 260 & data2$RND_ADJ_FE  
+                               > 27 & 
+data2$THC..g.mi. > 0.02 ))
+data2_group5 <- subset(data2, (data2$Rated.Horsepower > 260 & data2$RND_ADJ_FE  
+                               < 27 & 
+data2$THC..g.mi. < 0.02 ))
+data2_group6 <- subset(data2, (data2$Rated.Horsepower > 260 & data2$RND_ADJ_FE  
+                               < 27 & 
+data2$THC..g.mi. > 0.02 ))
+data2_group7 <- subset(data2, (data2$Rated.Horsepower > 260 & data2$RND_ADJ_FE  
+                               > 27 & 
+data2$THC..g.mi. < 0.02 ))
+data2_group8 <- subset(data2, (data2$Rated.Horsepower > 260 & data2$RND_ADJ_FE  
+                               > 27 & 
+data2$THC..g.mi. > 0.02 ))
+
+
+# Third Time Period
+data3_group1 <- subset(data3, (data3$Rated.Horsepower < 260 & data3$RND_ADJ_FE  
+                               < 27 & data3$THC..g.mi. < 0.02 ))
+data3_group2 <- subset(data3, (data3$Rated.Horsepower < 260 & data3$RND_ADJ_FE  
+                               < 27 & data3$THC..g.mi. > 0.02 ))
+data3_group3 <- subset(data3, (data3$Rated.Horsepower < 260 & data3$RND_ADJ_FE  
+                               > 27 & data3$THC..g.mi. < 0.02 ))
+data3_group4 <- subset(data3, (data3$Rated.Horsepower < 260 & data3$RND_ADJ_FE  
+                               > 27 & data3$THC..g.mi. > 0.02 ))
+data3_group5 <- subset(data3, (data3$Rated.Horsepower > 260 & data3$RND_ADJ_FE  
+                               < 27 & data3$THC..g.mi. < 0.02 ))
+data3_group6 <- subset(data3, (data3$Rated.Horsepower > 260 & data3$RND_ADJ_FE  
+                               < 27 & data3$THC..g.mi. > 0.02 ))
+data3_group7 <- subset(data3, (data3$Rated.Horsepower > 260 & data3$RND_ADJ_FE  
+                               > 27 & data3$THC..g.mi. < 0.02 ))
+data3_group8 <- subset(data3, (data3$Rated.Horsepower > 260 & data3$RND_ADJ_FE  
+                               > 27 & data3$THC..g.mi. > 0.02 ))
+
+```
+## Compare the Groups:
+```{r Compare}
+# Comparing the groups for the three time periods, to check if any vehicles
+# has moved from one group to other
+a<- levels(data1_group1$Veh.Mfr.Code)
+b<-levels(data2_group1$Veh.Mfr.Code)
+c<-levels(data3_group1$Veh.Mfr.Code)
+
+d<- levels(data1_group2$Veh.Mfr.Code)
+e<- levels(data2_group2$Veh.Mfr.Code)
+f<- levels(data3_group2$Veh.Mfr.Code)
+
+g<- levels(data1_group3$Veh.Mfr.Code)
+h<- levels(data2_group3$Veh.Mfr.Code)
+i<- levels(data3_group3$Veh.Mfr.Code)
+
+
+j<- levels(data1_group4$Veh.Mfr.Code)
+k<- levels(data2_group4$Veh.Mfr.Code)
+l<- levels(data3_group4$Veh.Mfr.Code)
+
+m<- levels(data1_group5$Veh.Mfr.Code)
+n<- levels(data2_group5$Veh.Mfr.Code)
+o<- levels(data3_group5$Veh.Mfr.Code)
+
+p<- levels(data1_group6$Veh.Mfr.Code)
+q<- levels(data2_group6$Veh.Mfr.Code)
+r<- levels(data3_group6$Veh.Mfr.Code)
+
+s<- levels(data1_group7$Veh.Mfr.Code)
+t<- levels(data2_group7$Veh.Mfr.Code)
+u<- levels(data3_group7$Veh.Mfr.Code)
+
+v<- levels(data1_group8$Veh.Mfr.Code)
+w<- levels(data2_group8$Veh.Mfr.Code)
+x<- levels(data3_group8$Veh.Mfr.Code)
+
+Reduce(intersect, list(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x))
+
+```
+## Inference from Grouping and Comparison of Groups:
+```
+
+Since we have common manufacturing code across time periods and across data 
+groups we can say that many vehicles have jumped from one group to other over 
+the time period of study due to increased fuel emission over the time period, 
+and hence those values are not within the boundaries of the previous groups they
+belonged to.
+```
+## Predictive Modeling:
+```{r Splitting the dataset into training and test sets}
+# Splitting the dataset of the three time periods into the corresponding 
+# training and test sets
+
+library(heatmaply)
+library(Metrics)
+# First Time Period
+smp_size <- floor(0.75* nrow(new_data1))
+train_ind <- seq(1,smp_size)
+test_ind <- seq(smp_size+1,nrow(new_data1))
+data1_train <- new_data1[train_ind,]
+data1_test <- new_data1[test_ind,]
+
+smp_size <- floor(0.75* nrow(new_data2))
+train_ind <- seq(1,smp_size)
+test_ind <- seq(smp_size+1,nrow(new_data2))
+data2_train <- new_data2[train_ind,]
+data2_test <- new_data2[test_ind,]
+
+smp_size <- floor(0.75* nrow(new_data3))
+train_ind <- seq(1,smp_size)
+test_ind <- seq(smp_size+1,nrow(new_data3))
+data3_train <- new_data3[train_ind,]
+data3_test <- new_data3[test_ind,]
+```
+## Linear Regression Model:
+```{r Linear Regression Model}
+# Linear regression model
+build_linear_model <- function(train, test) {
+  attach(train)
+  lm1 <- lm(RND_ADJ_FE~PC1+PC2+PC3+PC4+PC5+PC6+PC7+PC8, data=train)
+  summary(lm1)
+  pred1 <- predict(lm1,test)
+  
+  results1 <- data.frame(pred1 = pred1, original=test$RND_ADJ_FE)
+  
+  print(paste("RSE: ", rse(results1$pred1,results1$original)))
+  print(paste("RMSE: ", rmse(results1$pred1,results1$original)))
+  print(paste("MSLE: ", msle(results1$pred1,results1$original)))
+  print(paste("SSE: ", sse(results1$pred1,results1$original)))
+  print(paste("MAE: ", mae(results1$pred1,results1$original)))
+  print(paste("MAPE: ", mape(results1$pred1,results1$original)))
+  qplot(lm1$fitted.values,lm1$residuals, main="Fitted Values vs. Residuals",
+       xlab = "Fitted Values", ylab="Residuals",geom=c("point", "line"))
+  qplot(test$RND_ADJ_FE, pred1, ylab="predictions", geom=c("point", "line"))
+}
+
+# Linear regression model on the first time period
+build_linear_model(data1_train, data1_test)
+# Linear regression model on the second time period
+build_linear_model(data2_train, data2_test)
+# Linear regression model on the third time period
+build_linear_model(data3_train, data3_test)
+
+```
+## Non Linear Regression Model of Degree 2:
+```{r Non Linear Regression Model of Degree 2}
+# Non-Linear regression model; Degree = 2 
+build_nonlinear_model <- function(train, test, degree){
+  n_lm <- lm(RND_ADJ_FE~poly(PC1+PC2+PC3+PC4+PC5+PC6+PC7+PC8, degree, raw=TRUE), 
+  data=train)
+  summary(n_lm)
+  pred1 <- predict(n_lm,test)
+  
+  results1 <- data.frame(pred1 = pred1, original=test$RND_ADJ_FE)
+  print(paste("RSE: ", rse(results1$pred1,results1$original)))
+  print(paste("RMSE: ", rmse(results1$pred1,results1$original)))
+  print(paste("MSLE: ", msle(results1$pred1,results1$original)))
+  print(paste("SSE: ", sse(results1$pred1,results1$original)))
+  print(paste("MAE: ", mae(results1$pred1,results1$original)))
+  print(paste("MAPE: ", mape(results1$pred1,results1$original)))
+  qplot(n_lm$fitted.values,n_lm$residuals, main="Fitted Values vs. Residuals",
+       xlab = "Fitted Values", ylab="Residuals",geom=c("point", "line"))
+  qplot(test$RND_ADJ_FE, pred1, ylab="predictions", geom=c("point", "line"))
+}
+# Non-Linear regression model (Degree=2) on the First Time Period
+build_nonlinear_model(data1_train, data1_test, 2)
+# Non-Linear regression model (Degree=2) on the Second Time Period
+build_nonlinear_model(data2_train, data2_test, 2)
+# Non-Linear regression model (Degree=2) on the Third Time Period
+build_nonlinear_model(data3_train, data3_test, 2)
+
+```
+## Non Linear Regression Model of Degree 3:
+```{r Non Linear Regression Model of Degree 3}
+# Non-Linear regression model (Degree=3) on the First Time Period
+build_nonlinear_model(data1_train, data1_test, 3)
+# Non-Linear regression model (Degree=3) on the Second Time Period
+build_nonlinear_model(data2_train, data2_test, 3)
+# Non-Linear regression model (Degree=3) on the Third Time Period
+build_nonlinear_model(data3_train, data3_test, 3)
+```
+
+## Conclusion:
+In conclusion, we see that due to wear and tear in the vehicles, certain 
+vehicles became more polluting over the period of study.
