@@ -1,0 +1,124 @@
+---
+title: "Bank"
+output:
+  html_document:
+    df_print: paged
+---
+
+#Libraries
+```{r}
+library(ggplot2)
+library(tidyverse)
+library(validate)
+```
+
+
+```{r}
+#importing the dataset
+bank <- read.csv("bank_campaign.csv")
+head(bank)
+```
+#Part one
+```{r}
+summary(bank)
+```
+
+#Part Two
+#1
+```{r}
+#Removing unknown 
+bank <- bank[!(bank$housing=="unknown" | bank$MS == "unknown"),]
+
+```
+
+```{r}
+#Pre processing
+#Encoding categorical data
+bank$job <- as.factor(bank$job)
+bank$MS <- as.factor(bank$MS)
+bank$education <- as.factor(bank$education)
+bank$default <- as.factor(bank$default)
+bank$housing <- as.factor(bank$housing)
+bank$poutcome <- as.factor(bank$poutcome)
+str(bank)
+```
+Encoding categorical information is a course of changing categorical data  into number configuration so the information with changed categorical data  can be given to the models to give and work on the forecasts
+ 
+```{r}
+#Scaling data
+bank$age_scaled <- scale(bank$age)
+bank$Loan.tenure_scaled <- scale(bank$Loan.tenure)
+```
+scaling is a method that  makes data points nearer to one another or in less complex words, we can say that the scaling is utilized for making data points generalized so the distance between them will be lower.
+
+#2
+#clensing methods
+```{r}
+#checking for missing values
+sum(is.na(bank))
+
+```
+There are no missing values in this dataset
+```{r}
+#checking valid values
+rules <- validator(
+  is.integer(age)
+  , is.integer(Loan.tenure)
+)
+out <- confront(bank, rules)
+summary(out)
+```
+The age and loan tunure need to be non negative or integer data type thus the need to check their validity.
+
+#Part Three
+#3
+```{r}
+#Descriptive statistics
+#Getting the mean age and number of campaigns performed with respect to the outcome of the previous marketing campaign
+by_outcome <- bank %>% group_by(poutcome) %>% summarise(avg_age = mean(age), avg_campaign = mean(campaign))
+by_outcome
+```
+
+```{r}
+#Getting the average and standard deviation with respect to the education level
+by_education <- bank %>% group_by(education) %>% summarise(avg_loan_tenure = mean(Loan.tenure), sd_loan_tenure = sd(Loan.tenure))
+by_education
+```
+#4
+#Customer Demographics
+```{r}
+#Level of education and type of job of the customers.
+g <- ggplot(bank, aes(y=education)) + geom_bar(aes(fill=job))
+g
+
+```
+The highest education level of the customers is high school while the lowest is illiterate.
+
+```{r}
+#Martial status and housing
+ggplot(bank, aes(MS)) + geom_bar(aes(fill=housing), position = "dodge")
+
+```
+The visualization shows that most of the customers are married and that almost half of them have housing loans
+
+#5
+#describe the customer, campaign and outcome
+```{r}
+#Campaign and outcome
+grp_by_outcome <- bank %>%
+  group_by(poutcome) %>%
+  summarise(campaigns = sum(campaign))
+ggplot(grp_by_outcome, aes(x=poutcome,y=campaigns)) + geom_col()
+```
+From the visualization most campaigns yielded a no outcome.
+
+
+```{r}
+#Customers job type and outcome
+ggplot(bank , aes(y=job)) + geom_bar(aes(fill=poutcome))
+```
+From the visualization blue-collar type of job is the most prominent type of job and also has the highest rate 
+successful outcome
+
+
+
