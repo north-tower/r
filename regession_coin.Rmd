@@ -1,0 +1,115 @@
+---
+title: "Untitled"
+author: "M"
+date: "10/30/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+Getting the libraries
+```{r}
+require(corrplot)
+```
+```{r}
+abandonUR <- fread("abandonrangesuniqWEIS18v2.csv")
+abandonUR$resmonth <- as.Date(abandonUR$resmon)
+resurrect <- aggregate(resvol~resmonth, length, data = ab_res_byMon[ab_res_byMon$resurrected,])
+names(resurrect)<-c("month", "resurrected")
+```
+coin creation series
+```{r}
+coin-data <- fread("coin_data.csv", na.strings = "-")
+coin_data <- coin_data[rowSums(is.na(coin_data)) <= 1,]   # Remove the 46 empty rows
+coin_data$volume <- as.numeric(gsub(",", "", coin_data$volume))
+location <- Sys.getlocale("LC_TIME")
+Sys.setlocale("LC_TIME", "C")
+coin_data$date <- as.Date(coin_data$date, "%d-%b-%y")
+Sys.setlocale("LC_TIME", location)
+coin_data1 <- coin_data[coin_data[, .I[which.min(date)], by = market]$V1]
+coin_data1$fmonth <- cut(coin_data1$date, breaks = "month")
+```
+```{r}
+coin_data1$open_price <- as.numeric(coin_data1$open)
+coin_data_create <- aggregate(open_price~fmonth, length, data = coin_data1)
+coin_data_create$fmonth <- as.Date(coin_data_create$fmonth, "%Y-%m-%d")
+names(coin_data_create)<-c("month", "created")
+```
+BTC monthly average price
+```{r}
+coin_data_btc <- coin_data[coin_data$market == "Bitcoin (BTC)",]
+coin_data_btc$month <- cut(coin_data_btc$date, breaks = "month")
+coin_data_btc$month <- as.Date(coin_data_btc$month, "%Y-%m-%d")
+coin_data_btc$close_price <- as.numeric(coin_data_btc$close)
+AvgbtcPrice <- aggregate(close_price~month, data=coin_data_btc, mean, na.rm = T)
+names(AvgbtcPrice)<-c("month", "btc_price")
+
+```
+monthly average volume
+```{r}
+average_volume <- fread("coin_avgvol.csv")
+volume_per_month <- average_volume[, 4:5]
+volume_per_month$date <- as.Date(volume_per_month$date)
+names(volume_per_month)<-c("volume", "month")
+```
+coin monthly price peak
+```{r}
+peak_price <- fread("price_5P.csv")
+peak_price$peak_date <- as.Date(peak_price$peak, "%m/%d/%y")
+peak_price$peak_month <- cut(peak_price$peak_date, breaks = "month")
+peak_price$peak_month <- as.Date(peak_price$peak_month, "%Y-%m-%d")
+peak_price_month <- aggregate(peak_value~peak_month, length, data= peak_price)
+names(peak_price_month)<-c("month", "price_peak")
+```
+monthly volume peak
+```{r}
+volume_peak <- fread("volume_5P.csv")
+volume_peak$peak_date <- as.Date(volume_peak$peak, "%m/%d/%y")
+volume_peak$peak_month <- cut(volume_peak$peak_date, breaks = "month")
+volume_peak$peak_month <- as.Date(volume_peak$peak_month, "%Y-%m-%d")
+volPeak_byMon <- aggregate(peak_value~peak_month, length, data= volume_peak)
+names(volPeak_byMon)<-c("month", "vol_peak")
+```
+Final dataset
+```{r}
+df <- merge(volPeak_byMon,AvgbtcPrice, by="month")
+df <- merge(peak_price_month, df, by="month")
+df <- merge(volume_per_month, df, by="month")
+df <- merge(df, coin_data_create, by="month")
+df <- merge(df, resurrect, by="month", all.x = TRUE)
+df$resurrected[is.na(df$resurrected)] <- 0
+
+df
+```
+Corelation Plot
+```{r}
+par(mfrow=c(1,1))
+corrplot(cor(df[,2:7]), method = "ellipse")
+```
+```{r}
+lm.created_btc_volPeak <- lm(created ~ btc_price + volume, data = df)
+summary(lm.created_btc_volPeak)
+
+lm.resurrected_btc <- lm(resurrected ~ btc_price, data = df)
+summary(lm.resurrected_btc)
+
+lm.resurrected_volume <- lm(resurrected ~ volume, data = df)
+summary(lm.resurrected_volume)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
