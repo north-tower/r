@@ -1,0 +1,308 @@
+---
+title: "Name"
+output:
+  html_document:
+    df_print: paged
+---
+```{r}
+#Libraries
+library(lme4)
+library(tidyverse)
+library(caret)
+library(dplyr)
+library(caret)
+library(glmnet)
+library(gam)
+library(rpart) 
+library(rpart.plot)
+library(mlbench)
+library(randomForest)
+library(adabag)
+```
+#Problem 1
+
+```{r}
+#Importing the dataset
+df <- read.csv("qsar_aquatic_toxicity.csv",header=FALSE, sep=";")
+names(df) <- c('TPSA','SAacc','H050','MLOGP','RDCHI','GATS1p','nN','C040','LC50')
+head(df)
+```
+
+```{r}
+#make this example reproducible
+set.seed(1)
+
+#use 2/3 of dataset as training set and 1/3 as test set
+sample <- sample(c(TRUE, FALSE), nrow(df), replace=TRUE, prob=c(2/3,1/3))
+
+train  <- df[sample, ]
+test   <- df[!sample, ]
+
+```
+
+
+```{r}
+#Linear Effect
+mixed.lmer <- lmer( LC50 ~ TPSA+(1 | SAacc)+H050+MLOGP+RDCHI+GATS1p+nN+C040, data = train)
+summary(mixed.lmer)
+
+# Make predictions
+predictions <- mixed.lmer %>% predict(test, allow.new.levels = TRUE)
+
+# Model performance
+# (a) Training error
+RMSE(predictions, test$LC50)
+
+# (b) Test error 
+R2(predictions, test$LC50)
+
+```
+```{r}
+model <- lm(LC50 ~ ., data=train)
+summary(model)
+
+predictions2 <- model %>% predict(test, allow.new.levels = TRUE)
+
+# Model performance
+# (a) Training error
+RMSE(predictions2, test$LC50)
+
+# (b) Test error
+R2(predictions2, test$LC50)
+
+```
+Both show the same results in terms of regression coefficients.
+
+```{r}
+#Question two
+for (x in 1:200) {
+  sample <- sample(c(TRUE, FALSE), nrow(df), replace=TRUE, prob=c(2/x,1/x))
+  train  <- df[sample, ]
+  test   <- df[!sample, ]
+  mixed.lmer <- lmer( LC50 ~ TPSA+(1 | SAacc)+H050+MLOGP+RDCHI+GATS1p+nN+C040, data = train)
+}
+
+
+```
+With more training data, the model will learn the underlying distribution of the real data better. Since a larger training set in your case improves the performance of on training and test set, you should get more data if you can. The performance on the test set might not be that reliable if your test set is small. In other words, your performance might be different if you change to another test set.
+
+```{r}
+#Question Three
+# stepwise forward regression
+library(olsrr)
+model <- lm(LC50 ~ ., data = train)
+ols_step_forward_p(model)
+```
+
+```{r}
+# stepwise backward regression
+model2 <- lm(LC50 ~ ., data = train)
+ols_step_backward_p(model2)
+
+```
+Forward and backward step wise regression can give you the same result,this is because it's all a matter of the statistic (often an F statistic) used in the step wise process.
+
+```{r}
+#Question 4
+#Cross Validation
+# Define training control
+set.seed(123) 
+train.control <- trainControl(method = "cv", number = 5)
+Grid_ri_reg = expand.grid(alpha = 0, lambda = seq(0.001, 0.1,
+                                                by = 0.0002))
+
+# Training Regression model
+model3 = train(x = train[, c("TPSA","SAacc","H050","MLOGP","RDCHI","GATS1p","nN","C040")],
+                    y = train$LC50,
+                    method = "glmnet",
+                    trControl = train.control,
+                    tuneGrid = Grid_ri_reg
+                    )
+# Summarize the results
+summary(model3)
+```
+
+```{r}
+#Bootstrapping
+# Define training control
+train.control2 <- trainControl(method = "boot", number = 5)
+# Train the model
+model4 = train(x = train[, c("TPSA","SAacc","H050","MLOGP","RDCHI","GATS1p","nN","C040")],
+                    y = train$LC50,
+                    method = "glmnet",
+                    trControl = train.control2,
+                    tuneGrid = Grid_ri_reg
+                    )
+# Summarize the results
+summary(model4)
+```
+
+```{r}
+par(mfrow=c(1,2))
+plot(model3)
+plot(model4)
+```
+From th plots it can be clearly seen that the two procedures are not far away from each other
+
+```{r}
+#Question Five
+#First
+gam1<-gam(LC50~s(TPSA,df=6)+s(SAacc,df=6)+s(H050,df=6)+s(MLOGP,df=6)+s(RDCHI,df=6)+s(GATS1p,df=6)+s(nN, df=6)+s(C040,df=6) ,data = df)
+summary(gam1)
+```
+
+```{r}
+#Second
+gam2<-gam(LC50~s(TPSA,df=12)+s(SAacc,df=12)+s(H050,df=12)+s(MLOGP,df=12)+s(RDCHI,df=12)+s(GATS1p,df=12)+s(nN, df=12)+s(C040,df=12) ,data = df)
+summary(gam2)
+```
+By changing the levels of complexity the significance of the regression coefficients change but there are some that do not chage their significance.
+
+```{r}
+#Question 6
+#build the initial tree
+tree <- rpart(LC50 ~ ., data=df, control=rpart.control(cp=.0001))
+#identify best cp value to use
+best <- tree$cptable[which.min(tree$cptable[,"xerror"]),"CP"]
+#produce a pruned tree based on the best cp value
+pruned_tree <- prune(tree, cp=best)
+#plot the pruned tree
+prp(pruned_tree,
+    faclen=0, #use full names for factor labels
+    extra=1, #display number of obs. for each terminal node
+    roundint=F, #don't round to integers in output
+    digits=5) #display 5 decimal places in output
+```
+Pruning reduces the size of decision trees by removing parts of the tree that do not provide power to classify instances. Decision trees are the most susceptible out of all the machine learning algorithms to overfitting and effective pruning can reduce this likelihood.
+
+```{r eval=FALSE, include=FALSE}
+#Question 7
+Ridge regression is an extension of linear regression where the loss function is modified to minimize the complexity of the model. This modification is done by adding a penalty parameter that is equivalent to the square of the magnitude of the coefficients.We observe that error rate in GAM model islightly lower as compared to error rate in decision tree model and hence we may prefer GAM model for this data set
+```
+
+#Problem 2
+```{r}
+data(PimaIndiansDiabetes)
+head(PimaIndiansDiabetes)
+```
+
+```{r}
+#Divide the dataset
+#make this example reproducible
+set.seed(1)
+
+#use 2/3 of dataset as training set and 1/3 as test set
+sample <- sample(c(TRUE, FALSE), nrow(PimaIndiansDiabetes), replace=TRUE, prob=c(2/3,1/3))
+
+train  <- PimaIndiansDiabetes[sample, ]
+test   <- PimaIndiansDiabetes[!sample, ]
+```
+
+
+```{r}
+#Question 1
+# 5-fold procedure
+trControl <- trainControl(method  = "cv",
+                          number  = 5)
+
+fit <- train(diabetes ~ .,
+             method     = "knn",
+             tuneGrid   = expand.grid(k = 1:10),
+             trControl  = trControl,
+             metric     = "Accuracy",
+             data       = PimaIndiansDiabetes)
+fit$results
+```
+```{r}
+#loo cross-validation procedure
+train.control <- trainControl(method  = "LOOCV", number = 5)
+
+fit <- train(diabetes~ .,
+             method     = "knn",
+             tuneGrid   = expand.grid(k = 1:10),
+             trControl  = train.control,
+             metric     = "Accuracy",
+             data       = PimaIndiansDiabetes)
+fit$results
+```
+
+K-NN performs much better if all of the data have the same scale
+
+```{r}
+#Question 2
+PimaIndiansDiabetes$diabetes <- ifelse(PimaIndiansDiabetes$diabetes == 'pos',1,0)
+gam3 <- gam(diabetes~s(pregnant)+s(glucose)+s(pressure)+s(triceps)+s(insulin)+s(mass)+s(pedigree)+s(age), data=PimaIndiansDiabetes)
+
+#Best Model
+model.forward<- step(gam3, ,direction = "forward")
+```
+The model has varibles:pregnant,glucose,pressure and triceps
+
+```{r}
+#Question 3
+#Classification Tree
+fit <- rpart(diabetes~., data =train,method = 'class')
+predictions <- predict(fit,train)
+# Model performance
+# Training error
+RMSE(predictions, test$diabetes)
+
+```
+
+```{r}
+#Random Forest
+rf <- randomForest(diabetes~., data=train, proximity=TRUE)
+predictions <- predict(rf,test)
+# Model performance
+# Training error
+RMSE(predictions, test$diabetes)
+
+```
+
+```{r}
+#AdaBoost
+# train a model using our training data
+train$diabetes <- as.factor(train$diabetes)
+model_adaboost <- boosting(diabetes~., data=train, boos=TRUE, mfinal = 50)
+#use model to make predictions on test data
+pred_test <- predict(model_adaboost, test)
+
+# Training error
+pred_test$error
+```
+
+```{r eval=FALSE, include=FALSE}
+#Question Four
+I would choose the random forest method as it can perform both regression and classification tasks also a random forest produces good predictions that can be understood easily.
+```
+
+
+```{r}
+#Question 5
+data(PimaIndiansDiabetes2)
+#use 2/3 of dataset as training set and 1/3 as test set
+sample <- sample(c(TRUE, FALSE), nrow(PimaIndiansDiabetes2), replace=TRUE, prob=c(2/3,1/3))
+
+train  <- PimaIndiansDiabetes2[sample, ]
+test  <- PimaIndiansDiabetes2[!sample, ]
+head(PimaIndiansDiabetes2)
+```
+
+```{r}
+#Second
+PimaIndiansDiabetes2$diabetes <- ifelse(PimaIndiansDiabetes2$diabetes == 'pos',1,0)
+gam4 <- gam(diabetes~s(pregnant)+s(glucose)+s(pressure)+s(triceps)+s(insulin)+s(mass)+s(pedigree)+s(age), data=PimaIndiansDiabetes2)
+
+#Best Model
+model.forward<- step(gam4, ,direction = "forward")
+
+```
+```{r}
+#Third
+#Classification Tree
+fit <- rpart(diabetes~., data =train,method = 'class')
+rpart.plot(fit,extra=106)
+```
+
+Different results are obtained as many machine learning algorithms fail if the dataset contains missing values this can lead to  building a biased machine learning model which will lead to incorrect results if the missing values are not handled properly.
+
