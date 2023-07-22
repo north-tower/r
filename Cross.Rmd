@@ -1,0 +1,310 @@
+---
+title: "Cross"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+```{r}
+#libraries
+options(warn=-1)
+library(tidyverse)
+library(stevemisc)
+library(stargazer)
+library(lme4)
+```
+
+```{r}
+#importing the data
+Cross <- haven::read_dta("Curtis 2015 Germany Poland UK.dta") %>% filter(year == 2015) %>%
+  mutate(countryname = countrycode::countrycode(ccode, "cown", "country.name"))
+```
+
+```{r}
+colSums(is.na(Cross))
+colsNa <- colnames(Cross)[!complete.cases(t(Cross))]
+colsNa
+```
+```{r}
+#checking for missing values
+incompleteData <- Cross[, colsNa]
+incompleteData
+```
+```{r}
+# divide our missing values through a threshold
+percentNa = apply(incompleteData, MARGIN=2, function(col)mean(is.na(col)))
+percentNa
+```
+```{r}
+#setting a proportion of missing value of each feature
+percentNa = as.data.frame(percentNa)
+
+colnames(percentNa) = c("percentage")
+
+percentNa$Variables <- rownames(percentNa)
+
+percentNa
+```
+````{r}
+#Since the missing data occurs at random then we will use median median imputation
+#median imputation
+
+incompleteData$occupprestige = ifelse(is.na(incompleteData$occupprestige), median(incompleteData$occupprestige, na.rm = TRUE),incompleteData$occupprestige)
+
+incompleteData$educNEW_median = ifelse(is.na(incompleteData$educNEW), median(incompleteData$educNEW, na.rm = TRUE),                       incompleteData$educNEW)
+
+```
+
+```{r}
+#Visual interpretation of the median imputation method used on the variable eduNEW
+incompleteData %>% 
+  ggplot(aes(x=educNEW, y =..density..)) +
+  geom_density(col = "light blue", lwd=1) + 
+  geom_density(aes(x=educNEW_median, y =..density..), col="red", lwd=1)+
+                                theme_minimal()
+
+```
+
+```{r}
+# Let's change up the exclusive variable.
+Cross$occupprestige <- incompleteData$occupprestige
+Cross$educNEW <- incompleteData$educNEW_median
+
+```
+
+```{r}
+Cross %>%
+  mutate(morenatthaneu = natid - europeanid,
+         exclnatidd = ifelse((natid > europeanid) & (natid>regid), 1, 0),
+         exclnatidi = ifelse(europeanid >= regid, natid - europeanid, natid-regid)) -> Cross
+
+# , "hhincyr", "cultid"
+Cross %>% haven::zap_labels(.) %>%
+  mutate_at(vars("openness5", "conscientiousness5", "extraversion5",
+                 "agreeableness5", "emostability5","age",
+                 "educNEW","occupprestige", "rururb",
+                 "lrideol","countryben",
+                 "polint","oli2","pmapprov",
+                 "trustEUinsts"), list(`01` = ~scales::rescale(.))) %>%
+  rename_at(vars(contains("_01")),
+            ~gsub('_', '', .)) -> Cross
+```
+
+```{r}
+Cross %>%
+  group_by(countryname, regid) %>%
+  tally() %>%
+  rename(cat = countryname) %>%
+  bind_rows(., Cross %>%
+              group_by(regid) %>%
+              tally() %>% mutate(cat = "Pooled Sample")) %>%
+  group_by(cat) %>%
+  mutate(total = sum(n),
+         perc = n/total) %>%
+  ungroup() %>%
+  mutate(cat = forcats::fct_inorder(cat)) %>% 
+  ggplot(.,aes(as.factor(regid), perc, fill=cat)) +
+  theme_steve_web() +  scale_fill_brewer(palette = "OrRd") +
+  geom_bar(stat="identity", position="dodge2", color="black") +
+  scale_x_discrete(labels = c("Do Not Identify\nWith It At All", "2", "3",
+                              "4", "5","6", "Identify Very Strongly\nWith It")) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = "",
+       y = "Percentage of Respondents",
+       fill = "",
+       title = "Identification with Region")
+
+```
+```{r}
+Cross %>%
+  group_by(countryname, natid) %>%
+  tally() %>%
+  rename(cat = countryname) %>%
+  bind_rows(., Cross %>%
+              group_by(natid) %>%
+              tally() %>% mutate(cat = "Pooled Sample")) %>%
+  group_by(cat) %>%
+  mutate(total = sum(n),
+         perc = n/total) %>%
+  ungroup() %>%
+  mutate(cat = forcats::fct_inorder(cat)) %>% 
+  ggplot(.,aes(as.factor(natid), perc, fill=cat)) +
+  theme_steve_web() +  scale_fill_brewer(palette = "OrRd") +
+  geom_bar(stat="identity", position="dodge2", color="black") +
+  scale_x_discrete(labels = c("Do Not Identify\nWith It At All", "2", "3",
+                              "4", "5","6", "Identify Very Strongly\nWith It")) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = "",
+       y = "Percentage of Respondents",
+       fill = "",
+       title = "Identification with Nation")
+```
+```{r}
+Cross %>%
+  group_by(countryname, europeanid) %>%
+  tally() %>%
+  rename(cat = countryname) %>%
+  bind_rows(., Cross %>%
+              group_by(europeanid) %>%
+              tally() %>% mutate(cat = "Pooled Sample")) %>%
+  group_by(cat) %>%
+  mutate(total = sum(n),
+         perc = n/total) %>%
+  ungroup() %>%
+  mutate(cat = forcats::fct_inorder(cat)) %>% 
+  ggplot(.,aes(as.factor(europeanid), perc, fill=cat)) +
+  theme_steve_web() +  scale_fill_brewer(palette = "OrRd") +
+  geom_bar(stat="identity", position="dodge2", color="black") +
+  scale_x_discrete(labels = c("Do Not Identify\nWith It At All", "2", "3",
+                              "4", "5","6", "Identify Very Strongly\nWith It")) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = "",
+       y = "Percentage of Respondents",
+       fill = "",
+       title = "Identification with Europe")
+
+```
+```{r}
+Cross %>%
+  group_by(countryname, exclnatidi) %>%
+  tally() %>%
+  rename(cat = countryname) %>%
+  bind_rows(., Cross %>%
+              group_by(exclnatidi) %>%
+              tally() %>% mutate(cat = "Pooled Sample")) %>%
+  group_by(cat) %>%
+  mutate(total = sum(n),
+         perc = n/total) %>%
+  ungroup() %>%
+  mutate(cat = forcats::fct_inorder(cat)) %>% 
+  ggplot(.,aes(as.factor(exclnatidi), perc, fill=cat)) +
+  theme_steve_web() +  scale_fill_brewer(palette = "OrRd") +
+  geom_bar(stat="identity", position="dodge2", color="black") +
+  scale_x_discrete(labels = c("Exclusive\nRegional or European\nIdentification", "-5", "-4", "-3", "-2", "-1",
+                              "National\nIdentification\nEqual to\nOther Identification", "1", "2", "3",
+                              "4", "5", "Exclusive\nNational Identification")) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = "",
+       y = "Percentage of Respondents",
+       fill = "",
+       title = "Exclusive National Identification")
+```
+
+```{r}
+base_reg <- as.formula("regid ~ openness501 + conscientiousness501 + extraversion501 + 
+                    agreeableness501 + emostability501 + 
+                       age01 + male + educNEW01 + rururb01 + eth_white + rel_christian + (1 | countryname)")
+
+base_nat <- as.formula("natid ~  openness501 + conscientiousness501 + extraversion501 + 
+                    agreeableness501 + emostability501 + 
+                       age01 + male + educNEW01 + rururb01 + eth_white + rel_christian + (1 | countryname)")
+
+base_eur <- as.formula("europeanid ~   openness501 + conscientiousness501 + extraversion501 + 
+                    agreeableness501 + emostability501 + 
+                       age01 + male + educNEW01 + rururb01 + eth_white + rel_christian + (1 | countryname)")
+
+base_excl <- as.formula("exclnatidi ~ openness501 + conscientiousness501 + extraversion501 + 
+                    agreeableness501 + emostability501 + 
+                        age01 + male + educNEW01 + rururb01 + eth_white + rel_christian + (1 | countryname)")
+
+base_excl_orig <- as.formula("morenatthaneu ~ openness501 + conscientiousness501 + extraversion501 + 
+                    agreeableness501 + emostability501 + 
+                        age01 + male + educNEW01 + rururb01 + eth_white + rel_christian + (1 | countryname)")
+
+full_reg <- as.formula("regid ~ openness501 + conscientiousness501 + extraversion501 + 
+                    agreeableness501 + emostability501 + lrideol01 + oli201 + occupprestige01 + 
+                       age01 + male + educNEW01 + rururb01 + eth_white + rel_christian + (1 | countryname)")
+
+full_nat <- as.formula("natid ~  openness501 + conscientiousness501 + extraversion501 + 
+                    agreeableness501 + emostability501 + lrideol01 + oli201 + occupprestige01 + 
+                       age01 + male + educNEW01 + rururb01 + eth_white + rel_christian + (1 | countryname)")
+
+full_eur <- as.formula("europeanid ~   openness501 + conscientiousness501 + extraversion501 + 
+                    agreeableness501 + emostability501 + lrideol01 + oli201 + occupprestige01 + 
+                       age01 + male + educNEW01 + rururb01 + eth_white + rel_christian + (1 | countryname)")
+
+full_excl <- as.formula("exclnatidi ~ openness501 + conscientiousness501 + extraversion501 + 
+                    agreeableness501 + emostability501 + lrideol01 + oli201 + occupprestige01 + 
+                        age01 + male + educNEW01 + rururb01 + eth_white + rel_christian + (1 | countryname)")
+
+full_excl_orig <- as.formula("morenatthaneu ~ openness501 + conscientiousness501 + extraversion501 + 
+                    agreeableness501 + emostability501 + lrideol01 + oli201 + occupprestige01 + 
+                        age01 + male + educNEW01 + rururb01 + eth_white + rel_christian + (1 | countryname)")
+
+```
+
+```{r}
+M1 <- lmer(base_reg, data=Cross)
+M2 <- lmer(base_nat, data=Cross)
+M3 <- lmer(base_eur, data=Cross)
+M4 <- lmer(base_excl, data=Cross)
+
+get_sd <- function(mod, raneflev) {
+  VarCorr(mod) %>% tbl_df() %>%
+    filter(grp == raneflev) %>%
+    select(sdcor) %>%
+    pull() -> x
+    round(x, 3)
+}
+```
+```{r}
+tribble(~stat, ~M1, ~M2, ~M3, ~M4,
+        "Number of Countries", 3, 3, 3, 3,
+        "sd(Country)", get_sd(M1, "countryname"), get_sd(M2, "countryname"), get_sd(M3, "countryname"), get_sd(M4, "countryname"),
+        "", NA, NA, NA, NA,
+        "N", nobs(M1), nobs(M2), nobs(M3), nobs(M4)) -> mod_stats
+```
+
+```{r}
+stargazer(M1, M2, M3, M4,  type="text",
+          title = "Baseline Results, Pooled 2015 Sample",
+          dep.var.labels = c("Regional ID", "National ID", "European ID", "Exclusive National ID"),
+          omit.stat = c("ll","aic","bic"),
+          notes = "Random effects omitted for presentation.",
+          covariate.labels = c("Openness", "Conscientiousness", "Extraversion",
+                               "Agreeableness", "Emotional Stability",
+                               "Age","Male","Education", "Urban", "White Ethnicity",
+    
+                                                          "Christian"))
+```
+```{r}
+M5 <- lm(regid ~ openness501 + conscientiousness501 + extraversion501 + 
+           agreeableness501 + emostability501 + lrideol01 + oli201 + occupprestige01 + 
+           age01 + male + educNEW01 + rururb01 + eth_white + rel_christian + factor(countryname),
+         data= Cross)
+
+
+M6 <- lm(natid ~ openness501 + conscientiousness501 + extraversion501 + 
+           agreeableness501 + emostability501 + lrideol01 + oli201 + occupprestige01 + 
+           age01 + male + educNEW01 + rururb01 + eth_white + rel_christian + factor(countryname),
+         data= Cross)
+
+
+M7 <- lm(europeanid ~ openness501 + conscientiousness501 + extraversion501 + 
+           agreeableness501 + emostability501 + lrideol01 + oli201 + occupprestige01 + 
+           age01 + male + educNEW01 + rururb01 + eth_white + rel_christian + factor(countryname),
+         data= Cross)
+
+
+M8 <- lm(morenatthaneu ~ openness501 + conscientiousness501 + extraversion501 + 
+           agreeableness501 + emostability501 + lrideol01 + oli201 + occupprestige01 + 
+           age01 + male + educNEW01 + rururb01 + eth_white + rel_christian + factor(countryname),
+         data= Cross)
+
+```
+
+```{r}
+stargazer(M5, M6, M7, M8,  type="text",
+          title = "Full Results, Pooled 2015 Sample",
+          dep.var.labels = c("Regional ID", "National ID", "European ID", "Exclusive National ID"),
+          omit.stat = c("ll","aic","bic", "f","ser","rsq"),
+          notes = "Germany is baseline group for country fixed effects.",
+          covariate.labels = c("Openness", "Conscientiousness", "Extraversion",
+                               "Agreeableness", "Emotional Stability", "Ideology (L-R)",
+                               "Opinion Leadership Index", "Occupational Prestige",
+                               "Age","Male","Education", "Urban", "White Ethnicity",
+                               "Christian", "Country = Poland", "Country = United Kingdom"))
+```
+
+
