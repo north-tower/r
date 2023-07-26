@@ -1,0 +1,570 @@
+---
+title: "12 R markdown"
+author: "MIKE NDEGWA"
+date: '`r Sys.Date()`'
+output:
+  word_document:
+    fig_height: 4
+    fig_width: 4.5
+  html_document:
+    fig_height: 4
+    fig_width: 4.5
+  pdf_document:
+    fig_height: 4
+    fig_width: 4.5
+---
+
+
+```{r, setup, include=FALSE}
+require(mosaic)   # Load additional packages here 
+
+# Some customization.  You can alter or delete as desired (if you know what you are doing).
+#trellis.par.set(theme=theme.mosaic()) # change default color scheme for lattice
+knitr::opts_chunk$set(
+  tidy=FALSE,     # display code as typed
+  size="small")   # slightly smaller font for code
+```
+
+#### **Intellectual Property:**
+These problems are the intellectual property of the instructors and may not be reproduced outside of this course.
+
+**.Rmd output format**:  The setting in this markdown document is `word_document`, since You also have options for `word_document` or `pdf_document`.
+
+***  
+***  
+
+###################################
+## Problem 1: Clustering Methods ##
+###################################
+
+In this problem, you will explore clustering methods.
+
+**Data Set**: Load the *wine.csv* data set (from the **rattle** package).
+
+Description from the documentation for the R package **rattle**: “The wine dataset contains the results of a chemical analysis of wines grown in a specific area of Italy. Three types of wine are represented in the 178 samples, with the results of 13 chemical analyses recorded for each sample.” That is, we have n = 178 wine samples, each of which has p = 13 measured characteristics.
+ 
+```{r,echo=FALSE}
+wine <- read.csv("wine.csv")
+#View(wine)
+
+# Load packages here 
+library(dplyr)
+library(ggformula)
+library(ggdendro)
+```
+
+### **Important Note**: 
+It is carefully noted in each problem to standardize the data.  Attention to those instructions will help you obtain the correct answers.
+
+After loading in the data from the *wine.csv* file, store the 13 numeric variables in a data frame **x**.
+
+
+### Question 1 **(2 points)**:
+
+Compute the means and standard deviations for all the variables.  Compare the means and standard deviations between the thirteen variables, using these values to explain why it is a good idea to standardize the variables before clustering.  Include at least one numeric computation to support your explanation.
+
+```{r}
+x <- wine
+head(x)
+mean(x$Alcohol)
+mean(x$Malic)
+mean(x$Ash)
+mean(x$Alcalinity)
+mean(x$Magnesium)
+mean(x$Phenols)
+mean(x$Flavanoids)
+mean(x$Nonflavanoids)
+mean(x$Proanthocyanins)
+mean(x$Color)
+mean(x$Hue)
+mean(x$Dilution)
+mean(x$Proline)
+
+```
+
+**Text Answer**:It is on the grounds that cluster analysis techniques rely upon the idea of estimating the distance between the various perceptions we're attempting to group. Assuming a variable is estimated at a higher scale than different factors, then, at that point, whatever action we use will be excessively impacted by that variable.
+
+
+### Standardize the numeric variables in **x** 
+and store the results in **x.scale**. 
+
+```{r,echo=FALSE}
+library(tidyverse)
+x.scale <- x%>%mutate_if(is.numeric,scale)
+```
+
+***
+
+### Hierarchical Clustering
+We will start with  hierarchical clusterings.
+
+### Question 2 **(2 points)**:
+
+Using Euclidean distance with **x.scale**, fit the hierarchical model using complete linkage.  Produce a dendrogram of all the clusters ; use the "Embed Image" button to embed the plot in the Canvas question.
+
+**Graph Answer** 
+```{r,echo=FALSE, fig.width=6}
+any(is.na(x))
+
+dist_mat <- dist(x.scale, method = 'euclidean')
+
+hclust_comp <- hclust(dist_mat, method = 'complete')
+plot(hclust_comp)
+
+```
+
+
+### Question 3 **(2 points)**:
+
+List an appropriate “height” (corresponding to the value of the distance measure) on the dendrogram for complete linkage that would produce three clusters.
+
+(The autograder will accept all answers within an appropriate range of values  - respond to *two* decimal places.)
+
+```{r,echo=FALSE}
+cut_avg <- cutree(hclust_comp, k = 3)
+plot(hclust_comp)
+rect.hclust(hclust_comp , k = 3, border = 2:6)
+abline(h = 3, col = 'red')
+round(mean(cut_avg),2)
+```
+
+**Numeric Answer (AUTOGRADED)**  
+
+
+### Question 4 **(1 point)**:
+
+Using Euclidean distance with **x.scale**, fit the hierarchical model using each of single linkage and average linkage, as well as complete linkage. Which of the linkage methods appears to produce  clusters that are most similarly-sized as they merge?
+
+```{r,echo=F,  fig.width=6}
+hclust_comp <- hclust(dist_mat, method = 'complete')
+hclust_simp <- hclust(dist_mat, method = 'single')
+hclust_avg <- hclust(dist_mat, method = 'average')
+plot(hclust_comp)
+plot(hclust_simp)
+plot(hclust_avg)
+```
+
+**Multiple choice Answer (AUTOGRADED)**:  one of  
+#Complete linkage,  
+Simple linkage,  
+Average linkage  
+
+
+### Question 5 **(1 point)**:
+
+Suppose we had further information that there are three types of wine, approximately equally represented, included in this data set.  Which visually appears to be the most reasonable linkage method to designate those three clusters?
+
+**Multiple choice Answer (AUTOGRADED)**:  one of  
+#Complete linkage,  
+Simple linkage,  
+Average linkage  
+
+
+### Question 6 **(2 points)**:
+
+Explain what you see visually in the dendrograms for the three linkage methods that supports your answer in the previous question.
+
+**Multiple dropdowns**:  At the ______top________ at which the data group into three clusters (corresponding to the distance between clusters), the selected linkage method produces clusters that have __equal____________ numbers of wine samples in each of the three clusters.  
+
+The other two unselected methods do not produce equally sized clusters, as illustrated by the __single____________  cluster(s) having many more wine samples than _______average_______ (with very few wine samples).
+
+
+
+### Question 7 **(2 points)**:
+
+Using the linkage method you selected to best designate three types of wine, for the split of the data in three clusters, make a plot of *Alcohol* versus *Dilution* marked by the clusters (using three different colors and/or symbols, along with a legend).
+
+Use the "Embed Image" button  to upload your plot in Canvas question.
+
+**Graph Answer**  
+
+```{r,echo=FALSE}
+suppressPackageStartupMessages(library(ggplot2))
+comp_df_cl <- mutate(x, cluster = cut_avg)
+count(comp_df_cl,cluster)
+ggplot(comp_df_cl, aes(x=Alcohol, y = Dilution, color = factor(cluster))) + geom_point()
+
+```
+
+
+***
+
+### Nonhierarchical Clustering
+
+Now we consider using nonhierarchical (*K*-means) clustering to split the data into clusters.
+
+### Question 8 **(2 points)**:
+
+For *K*-means clustering, use multiple initial random splits to produce *K* = 5, 4, 3, and 2 clusters.  Use tables or plots to investigate the clustering memberships across various initial splits, for each value of *K*.  Which number(s) of clusters seem to produce very consistent cluster memberships (matching more than 95% of memberships between nearly all initial splits) across different initial splits?  Select all *K* that apply.
+
+**Important**:  compare two memberships for multiple different initial splits.
+
+
+```{r}
+set.seed(1234)
+x_k5 <- kmeans(x.scale, centers=5)
+x_k4 <- kmeans(x.scale, centers=4)
+x_k3 <- kmeans(x.scale, centers=3)
+x_k2 <- kmeans(x.scale, centers=2)
+
+# Mean values of each cluster
+aggregate(x, by=list(x_k5$cluster), mean)
+aggregate(x, by=list(x_k4$cluster), mean)
+aggregate(x, by=list(x_k3$cluster), mean)
+aggregate(x, by=list(x_k2$cluster), mean)
+
+```
+
+
+**Multiple select (AUTOGRADED)**:  any of  
+#2,  
+3,  
+4, and/or  
+#5
+
+
+### Final Nonhierarchical Clustering
+
+Starting with ``set.seed(12)`` to set the initial split, use nonhierarchical (*K*-means) clustering to determine cluster membership for three clusters (corresponding to the three types of wine).  How many wine samples are in each cluster?
+
+ 
+```{r,echo=FALSE}
+set.seed(12)
+x_k3$size
+```
+
+### Question 9 **(1 point)**:
+
+Wine samples in Cluster 1:51
+
+**Numeric Answer (AUTOGRADED)**  
+
+
+
+### Question 10 **(1 point)**:65
+
+Wine samples in Cluster 2:
+
+**Numeric Answer (AUTOGRADED)**  
+
+
+
+### Question 11 **(1 point)**:62
+
+Wine samples in Cluster 3:
+
+**Numeric Answer (AUTOGRADED)**  
+
+
+### Question 12 **(2 points)**:
+
+For splitting into three clusters, compare the cluster membership of hierarchical clustering (using the linkage method you selected when creating three clusters to designate three types of wine) to the cluster membership of K-means clustering (using the cluster membership from the previous question).  What proportion of the cluster memberships match between the hierarchical and nonhierarchical clustering methods?
+
+Proportion that match $\approx$ 
+
+(respond to *two* decimal places)
+
+**Important**:  cluster *labels* do NOT necessarily match.
+
+```{r,echo=FALSE}
+summary(cut_avg)
+summary(x_k3)
+```
+
+**Numeric Answer (AUTOGRADED)**  
+
+
+***
+***
+
+############################
+## Problem 2: PCA methods ##
+############################
+
+We will continue to use the wine data set from Problem 1.  We have *n* = 178 wine samples, each of which has *p* = 13 measured characteristics.
+
+Load in the data from the **wine.csv** file.  Store the 13 numeric variables in a data frame **x**.
+
+We wish to use PCA to identify which variables are most meaningful for describing this dataset.  Use the ``prcomp`` function, with ``scale=T``, to find the principal components. 
+
+```{r,echo=FALSE}
+x.pca <- prcomp(x,scale=TRUE)
+x.pca
+```
+
+
+### Question 13 **(2 points)**:
+
+Look at the loadings for the first principal component.  What is the loading for the variable *Alcohol*?
+
+(respond to *three* decimal places)
+
+```{r}
+round(x.pca$rotation[,1:3],3)
+```
+
+**Numeric Answer (AUTOGRADED)**  
+
+
+### Question 14 **(1 point)**:
+
+Which variable appears to contribute the **least** to the first principal component?
+
+**Multiple choice (AUTOGRADED)**:  one of  
+Alcohol  
+Malic  
+Ash  
+Alcalinity  
+Magnesium  
+Phenols  
+#Flavanoids  
+Nonflavanoids  
+Proanthocyanins  
+Color  
+Hue  
+Dilution  
+Proline 
+
+
+### Question 15 **(1 point)**:
+
+What is the PVE for the first principal component?
+
+(enter as a proportion, number between 0 to 1, and report to *three* decimal place)
+
+```{r,echo=FALSE}
+x.cov <- cov(x.scale)
+x.eigen <- eigen(x.cov)
+PVE <- x.eigen$values / sum(x.eigen$values)
+round(PVE[1],3)
+
+```
+
+**Numeric Answer (AUTOGRADED)**  
+
+
+### Question 16 **(2 points)**:
+
+How many principal components would need to be used to explain about 80% of the variability in the data?
+
+```{r,echo=FALSE}
+std_dev <- x.pca$sdev
+pr_var <- std_dev^2
+prop_varex <- pr_var/sum(pr_var)
+
+plot(cumsum(prop_varex), xlab = "Principal Component",
+              ylab = "Cumulative Proportion of Variance Explained",
+              type = "b")
+
+
+```
+
+**Numeric (integer) Answer (AUTOGRADED)**  5
+
+
+### Scores
+
+On a biplot of the data, wine sample #159 appears to be an outlier in the space of principal components 1 and 2.  What are the principal component 1 and 2 score values (that is, the coordinates in the space of principal components 1 and 2) for wine sample #159?
+
+```{r,echo=FALSE}
+biplot(x.pca,scale=0)
+head(x.pca$x)
+```
+(0.1,3)
+
+
+### Question 17 **(1 point)**:-1.006
+
+Principal component 1 score value $\approx$
+
+(report to *three* decimal places)
+
+**Numeric Answer (AUTOGRADED)**  
+
+
+### Question 18 **(1 point)**:-0.332
+
+Principal component 2 score value $\approx$
+
+(report to *three* decimal places)
+
+**Numeric Answer (AUTOGRADED)**  
+
+
+***
+***
+
+
+
+############################################
+## Problem 3: Gene Expression Application ##
+############################################
+
+Find the gene expression data set **GeneExpression.csv** in the online course.  There are 40 tissue samples, each with measurements on 1000 genes.  Note that this dataset is “transposed” from typical format; that is, the variables (gene expression measurements) are listed in the rows, and the data points (tissue samples) that we want to group or identify are listed in the columns.  That is, we have n = 40 tissue samples, each of which has p = 1000 observed gene expression measurements.
+
+The goal is to distinguish between healthy and diseased tissue samples.
+
+Data preparation:
+
+   1.  Load in the data using ``read.csv())``. Note the ``header=F`` argument is used to identify that there are no column names.  
+   2.  Be sure to transpose the data frame before using it for analysis, using the function ``t()``.  
+   3. Standardize the 1000 variables to each have mean 0 and standard deviation 1.
+
+Apply the following commands to properly prepare the data:
+
+```{r}
+genes = read.csv("GeneExpression.csv",header=F)
+genesNew = t(genes); dim(genesNew)
+genesNew = scale(genesNew)
+```
+
+You should wind up with a data frame of size 40 rows (tissue samples) by 1000 columns (gene expression measurements) - use this to complete the following tasks.
+ 
+
+### Question 19 **(1 point)**:  Clustering
+
+Based on the goal of the study, explain why it makes sense to split the data into only two clusters.
+
+**Text Answer**:Because we are investigating only two conditions
+
+
+### Question 20 **(1 point)**:
+
+Use hierarchical clustering with **Euclidean distance** and **complete linkage** to split the 40 samples into *two* clusters.  How many tissue samples from among samples 21–40 are in the second cluster?
+
+```{r,echo=FALSE}
+dist_mat2 <- dist(genesNew, method = 'euclidean')
+
+hclust_comp2 <- hclust(dist_mat2, method = 'complete')
+cut_avg2 <- cutree(hclust_comp2, k = 2)
+cut_avg2
+```
+
+**Numeric (integer) Answer (AUTOGRADED)**  
+
+
+### Question 21 **(2 points)**:
+
+At time of diagnosis, the actual state for tissue samples 1-20 was "healthy", and tissue samples 21–40 were "diseased".
+
+What do the results of the clustering from the previous question tell us about the ability of the gene expression measurements to identify diseased tissue?
+
+**Text Answer**:The clustering results do not tell us about the ability to identify diseased tissue.
+
+***
+
+### Question 22 **(1 point)**:  Principal Components
+
+Use ``prcomp`` to compute the principal components for all 40 samples.  How many *meaningful* (that is, explaining a non-zero proportion of the variability) principle components are able to be computed?
+
+Number of principal components = 40
+
+```{r,echo=FALSE}
+gene.pca <- prcomp(genesNew,scale=TRUE)
+(gene.pca$sdev)^2
+```
+
+**Numeric (integer) Answer (AUTOGRADED)**  
+
+
+### Question 23 **(2 points)**:
+
+What is the cumulative PVE explained by the first two principal components?
+
+(respond as a proportion, out to *three* decimal places)
+
+```{r,echo=FALSE}
+gene.var = gene.pca$sdev^2
+
+PVE = gene.var / sum(gene.var) * 100 # in percentage
+round(PVE[1],3)
+round(PVE[2],3)
+
+
+```
+
+**Numeric Answer (AUTOGRADED)**  
+
+
+***
+
+### Question 24 **(2 points)**:
+
+Produce a biplot of the first two principal components and upload it on the Canvas quiz, using the "Embed Image" button.
+
+**Graph Answer**  
+
+```{r,echo=FALSE,fig.width=6, fig.height=6}
+biplot(gene.pca, scale = 0)
+```
+
+
+
+***
+
+### Variable Importance
+
+Next, we compute the means of the (previously-standardized) variables for only the last twenty tissue samples (samples 21-40) – we will refer to these as the **means2**.  Code for doing so is shown below:
+
+```{r,echo=FALSE,fig.width=5, fig.height=5}
+genesNew2 = genesNew[21:40,]; dim(genesNew2)
+means2 = apply(genesNew2,2,mean)
+```
+
+Recall that each variable records measurements for a distinct gene expression.
+
+### Question 25 **(2 points)**:
+
+A histogram of **means2** (the 1000 means computed for the second half of samples for each of the 1000 gene expressions) is displayed below.
+
+```{r,echo=FALSE,fig.width=6, fig.height=4}
+hist(means2,breaks=30, 
+     main = "Computed for Tissue Samples 21-40",
+     xlab = "Means of 1000 gene expressions")
+```
+
+   * **Describe** the distribution visualized in the histogram. 
+   * **Discuss** how this pattern could occur, even when the gene-expressions (across the full data set) having been standardized.
+   
+**Text Answer**:The histogram has two peaks.The data rises to the peak and then goes down and up again
+
+   
+### Question 26 **(2 points)**:
+
+A notable feature of the plot of the **means2** values is that there is a separated (higher) group of gene-expression means, as computed on only the last twenty tissue samples (samples 21–40). 
+
+This separated set  contains  means that are ___un_________ expected for standardized gene-expressions;
+The means of the gene-expressions computed for the first twenty tissue samples (samples 1-20) would thus be ______un______ expected.  
+
+**Multiple Dropdowns Answer (AUTOGRADED)**  
+
+
+### Question 27 **(2 points)**:
+
+We can use the below code to compute **pc.loadings1**, the loadings for principal component 1 fit to the full data: 
+
+```{r}
+genes.pc = prcomp(genesNew)
+pc.loadings1 = genes.pc$rotation[,1] 
+```
+
+At the end of this question, we see a plot of **pc.loadings1** against **means2** (the means of all 1000 variables for only the last twenty tissue samples, samples 21–40). 
+
+Use values from the prior code definition of **means2**, along with this plot, to select two variables (from the list below) that are most important in the first principal component.  You may also find the biplot to be helpful.
+
+
+```{r,echo=F,fig.width=5, fig.height=4.5}
+library(ggformula)
+ImportantVars = data.frame(means2,pc.loadings1)
+ImportantVars %>% 
+  gf_point(pc.loadings1 ~ means2,size=2,shape = 20) %>%
+  gf_labs(title = "",
+          y = "Loadings for principal component 1, fit to full data", x = "Means of 1000 gene expressions for Tissue Samples 21-40")
+```
+
+**Multiple select (AUTOGRADED)**:  two of  
+Var 95  
+#Var 564  
+Var 568  
+Var 703  
+#Var 907  
