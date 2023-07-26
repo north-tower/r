@@ -1,0 +1,244 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+#Importing libraries
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(stringi)
+library(wordcloud)
+library(tidytext)
+library(stringr)
+library(dplyr)
+library(textdata)
+```
+
+```{r}
+#importing the dataset
+gofund <- read.csv("gofundme_data_OSF.csv")
+head(gofund)
+```
+
+
+```{r}
+#Preprocessing
+#Encoding categorical data
+gofund$currency <- factor(gofund$currency, levels = c("USD", "GBP", "CAD","AUD","EUR","NOK"))
+gofund$Category <- factor(gofund$Category, levels = c("Funerals & Memorials","Sports, Teams & Clubs","Medical, Illness & Healing", "Missions, Faith & Church" ,"Business & Entrepreneurs","Babies, Kids & Family","Other","Education & Learning", "Community & Neighbors","Accidents & Emergencies","Creative Arts, Music & Film","Celebrations & Events","Volunteer & Service", "Animals & Pets" ,  "Rent, Food & Monthly Bills",  "Environment", "Non-Profits & Charities",  "Dreams, Hopes & Wishes",  "Competitions & Pageants","Travel & Adventure"))  
+
+#Success ==  1 | Fail == 0
+gofund$state <- ifelse(gofund$Raised > gofund$Goal,1,0)
+```
+
+```{r}
+#Data cleaning
+gofund<- na.omit(gofund)
+
+
+gofund$negate <- as.numeric(gofund$negate)
+gofund$sad <- as.numeric(gofund$sad)
+gofund$risk <- as.numeric(gofund$risk)
+gofund$money <- as.numeric(gofund$money)
+gofund$anger <- as.numeric(gofund$anger)
+gofund$posemo <- as.numeric(gofund$posemo)
+gofund$negemo <- as.numeric(gofund$negemo)
+gofund$anx <- as.numeric(gofund$anx)
+gofund$anger <- as.numeric(gofund$anger)
+gofund$sad <- as.numeric(gofund$sad)
+gofund$risk <- as.numeric(gofund$risk)
+gofund$money <- as.numeric(gofund$money)
+
+gofund<- na.omit(gofund)
+```
+
+```{r}
+#Data Exploration
+#Failed vs Success
+gofund %>% group_by(state) %>% count(state)
+```
+```{r}
+#Number of countries
+levels(gofund$currency)
+
+```
+```{r}
+#success/failure rate  country
+grp_by_country <- gofund %>%
+  group_by(currency) %>%
+  summarise(successful = sum(state == 1), failed = sum(state == 0)) 
+grp_by_country
+```
+```{r}
+#Visualization
+ggplot(gofund , aes(currency)) + geom_bar(aes(fill=state))
+```
+```{r}
+#success/failure rate category
+grp_by_category <- gofund %>%
+  group_by(Category) %>%
+  summarise(successful = sum(state == 1), failed = sum(state == 0)) 
+grp_by_category
+```
+
+```{r}
+#visualization
+ggplot(gofund , aes(y=Category)) + geom_bar(aes(fill=state))
+```
+
+```{r}
+#Funds
+summary(as.numeric(gofund$Raised))
+```
+```{r}
+#Date Difference,state per category
+grp_by_category_date <- gofund %>% group_by(Category) %>%
+  summarise(date_difference = sum(as.numeric(date_difference)))
+grp_by_category_date
+```
+```{r}
+#Visualization
+ggplot(gofund, aes(y=Category,x=as.numeric(date_difference))) + geom_col()
+```
+```{r}
+#Word count per category
+count_category <- gofund %>% 
+  group_by(Category) %>%
+  summarise(word_count = sum(as.numeric(WC)))
+count_category
+```
+
+```{r}
+#Word frequency
+gofund$Description <- iconv(enc2utf8(gofund$Description),sub="byte")
+gofund$text_clean <- tolower(gofund$Description) # Lowercase
+gofund$text_clean <- gsub("[[:punct:]]", "", gofund$text_clean) # Remove punctuation
+
+gofund$text_clean <- gsub("[[:digit:]]", "", gofund$text_clean) # Remove numbers
+gofund$text_clean <- gsub("\\s+", " ", stri_enc_toutf8(gofund$text_clean)) #Removeextrawhitespaces
+vocab <- unlist(str_split(gofund$text_clean, " ")) # Split into vocab list
+total_words <- length(vocab) # Total words - 2958646
+unique_words <- length(unique(vocab)) # Unique Words - 101764
+lex_div <- unique_words / total_words # Lexical Diversity - 0.03439546
+vocab_nsw <- vocab[!(vocab) %in% stop_words$word] # Only keep nonstopwords
+gofund_text_clean <- paste(vocab_nsw, collapse = " ") # Gather back into one string
+freq_word <- sort(table(unlist(strsplit(gofund_text_clean, " "))), #Create frequency table
+ decreasing = TRUE)
+freq_word <- as.data.frame(freq_word)
+freq_word <- freq_word %>%
+ rename(word = Var1, freq=Freq)
+word_frequency_top10 <- freq_word%>%  top_n(10,freq)
+
+ggplot(word_frequency_top10,aes(word,freq,fill=freq)) +
+ geom_col()
+```
+
+```{r}
+
+#Word Cloud
+word_frequency_top200 <- freq_word%>%
+ top_n(200,freq)
+wordcloud(words = word_frequency_top200$word, freq =
+word_frequency_top200$freq, min.freq = 1,
+ max.words=200, random.order=FALSE, rot.per=0.35,
+ colors=brewer.pal(8, "Dark2"))
+```
+```{r}
+#Check frequency of words in text
+text_df <- subset(gofund, select = c(Description,Category))
+
+text_df %>%
+group_by(Category)
+
+```
+```{r}
+tidy_category <- text_df %>%  unnest_tokens(word, Description)
+
+head(tidy_category)
+```
+
+```{r}
+#Removing stop words
+data(stop_words)
+
+tidy_category <- tidy_category %>%
+  anti_join(stop_words)
+```
+```{r}
+#Check frequency of words
+tidy_category %>%
+  count(word, sort = TRUE) 
+```
+```{r}
+#Visualization
+tidy_category %>%
+  count(word, sort = TRUE) %>%
+  filter(n > 25000) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(n, word)) +
+  geom_col() +
+  labs(y = NULL)
+```
+
+```{r}
+#Effects of posemo and negemo
+grp_by_state <- gofund %>% group_by(state) %>%
+  summarise(posemo = sum(posemo), negemo = sum(negemo))
+grp_by_state
+
+```
+
+```{r}
+#nrc emotions related to financial distress,financial strain,financial pressure
+nrc <- get_sentiments("nrc")   %>%
+  filter(sentiment == c("anger", "fear","sadness","anticip")) 
+nrc
+```
+```{r}
+#words linked to financial distress linked,financial strain, financial pressure in the dataset and their nrc per category
+tidy_category %>% inner_join(nrc) %>%
+  group_by(Category) %>%
+  count(word, sort = TRUE) 
+```
+
+
+```{r}
+#LIWC output variables related to financial distress, financial stress are negemo,anx,anger,sad,risk,money
+#LIWC in the dataset per category
+
+grp_by_category <- gofund %>% group_by(Category) %>%
+  summarise(anxiety = sum(anx),anger = sum(anger), sad = sum(sad),risk = sum(risk), money = sum(money), negemo = sum(negemo))
+grp_by_category
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
