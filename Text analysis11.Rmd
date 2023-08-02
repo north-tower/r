@@ -1,0 +1,155 @@
+---
+title: "Computational Text Analysis"
+output:
+  word_document: default
+  html_notebook: default
+---
+
+```{r}
+library(tidytext)
+library(tidyverse)
+library(tm)
+library(kableExtra)
+library(haven)
+library(quanteda)
+library(quanteda.textstats)
+library(ggplot2)
+library(topicmodels)
+library(ggthemes)
+```
+
+```{r}
+tweets <- read.csv("REA_0621_tweets_csv_hashed_2018.csv")
+head(tweets)
+```
+#Word Frequency
+```{r}
+#Getting the date of the tweets
+tweets$Date <- as.Date(tweets$tweet_time)
+# get simplified dataset with only tweets contents and year
+simp_tweets <- tweets %>%
+  select(tweet_text, Date)
+
+head(simp_tweets)
+```
+```{r}
+#Cleaning
+tidy_tweets <- simp_tweets %>% 
+  mutate(tweets = tolower(tweet_text)) %>%
+  unnest_tokens(word, tweets) %>%
+  filter(str_detect(word, "[a-z]"))
+#Removing stop words
+tidy_tweets <- tidy_tweets %>%
+    filter(!word %in% stop_words$word)
+
+```
+
+```{r}
+#Further tidy
+remove_reg <- c( "https", "t.co","amp", "glblctzn")
+                  
+tidy_tweets <- tidy_tweets %>%
+  filter(!word %in% remove_reg)
+#Word count
+tidy_tweets %>%
+  count(word, sort = TRUE)
+```
+The most common word here is health 
+
+```{r}
+#Most common words per day
+tweets_term_counts <- tidy_tweets %>% 
+  group_by(Date) %>%
+  count(word, sort = TRUE)
+tweets_term_counts
+
+```
+Girls was the most mentioned in all the days.
+```{r}
+tweets_term_counts$womword <- as.integer(grepl("feminist|feminism|gender|harassment|sexism|sexist|girls|education|health", 
+                                            x = tweets_term_counts$word))
+tweets_term_counts
+```
+Tagging words we think relate to the health , education and girls.
+```{r}
+#get counts by year and word
+tweets_counts <- tweets_term_counts %>%
+  group_by(Date) %>%
+  mutate(day_total = sum(n)) %>%
+  filter(womword==1) %>%
+  summarise(sum_wom = sum(n),
+            day_total= min(day_total))
+
+head(tweets_counts)
+```
+Now that we have tagged individual words relating to  health , education and girls, we can sum up the number of times these words appear each day and then denominate them by the total number of words in the event descriptions.The intuition here is that any increase or decrease in the percentage of words relating to these issues is capturing a substantive change in the representation of issues related to gender, health and education 
+
+```{r}
+#Time trend 
+
+ggplot(tweets_counts, aes(Date, sum_wom / day_total, group=1)) +
+  geom_line() +
+  xlab("Date") +
+  ylab("% gender-related words") +
+  scale_y_continuous(labels = scales::percent_format(),
+                     expand = c(0, 0), limits = c(0, NA)) +
+  theme_tufte(base_family = "Helvetica") 
+```
+The time trend above shows how issues relating to  health , education and girls were discussed througout the year.
+
+
+#Topic Model
+```{r}
+tweets_words <- simp_tweets %>%
+  mutate(tweets = tolower(tweet_text)) %>%
+  unnest_tokens(word, tweets) %>%
+  filter(!is.na(word)) %>%
+  filter(!word %in% remove_reg) %>%
+  count(tweet_text, word, sort = TRUE) %>%
+  ungroup() %>%
+  anti_join(stop_words)
+
+
+tweets_dtm <- tweets_words %>%
+  cast_dtm(tweet_text, word, n)
+
+tweets_lda <- LDA(tweets_dtm, k = 10, control = list(seed = 1234))
+terms(tweets_lda, 10)
+
+```
+Here we inspect the contents of each topic
+
+```{r}
+# the probability that the given term belongs to a given topic
+tweets_topics <- tidy(tweets_lda, matrix = "beta")
+
+tweets_topics %>%
+  arrange(-beta)
+```
+
+```{r}
+#plots the top terms, in terms of beta, for each topic 
+tweets_top_terms <- tweets_topics %>%
+  group_by(topic) %>%
+  top_n(10, beta) %>%
+  ungroup() %>%
+  arrange(topic, -beta)
+
+tweets_top_terms %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(beta, term, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free", ncol = 4) +
+  scale_y_reordered() +
+  theme_tufte(base_family = "Helvetica")
+```
+
+
+The visualization above shows us the words associated with each topic, and the size of the associated 
+β coefficient.
+
+
+
+
+
+
