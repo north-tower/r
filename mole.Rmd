@@ -1,0 +1,192 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r}
+#Packages required
+library(caret)
+library(ggfortify)
+library(factoextra)
+library(psych)
+library(ROCR) 
+library(Metrics)
+```
+
+```{r}
+#Getting the data
+df <- read.csv("mole_dataset.csv")
+head(df)
+```
+
+```{r}
+#Getting the structure of the dataset
+str(df)
+
+```
+
+```{r}
+#Checking for missing values
+sum(is.na(df))
+```
+```{r}
+#Dealing with missing data
+df <- na.omit(df)
+```
+
+```{r}
+#2. The data is about the moles. There are some features which will help you identify whether the mole is benign or malignant. (Last column is your response variable).
+levels(as.factor(df$benign_malignant))
+```
+The response variable has two factors "benign" and "malignant" which can help idenfity if a mole is benign or malignant.
+
+```{r}
+#3. Search for correlation between the independent variables (create a heatmap or correlation matrix, etc).
+
+#Selecting only the independent variables and numeric variables
+df2 <-subset(df, select = -c(image_id, benign_malignant , sex ))
+
+#The correlation matrix
+res <- cor(df2)
+res
+
+corrplot::corrplot(res,method = "square",tl.cex = 0.6, tl.col = "black")
+
+```
+Positive correlations are displayed in blue and negative correlations in red color. Color intensity are proportional to the correlation coefficients.On the right side the legend color shows the correlation coefficients and the corresponding colors.The variable full size is highly correlated with both the pixel_x and pixel_y variables
+
+```{r}
+#5. Build a logistic regression model to raw data first.
+# logistic regression model
+df$benign_malignant <- as.factor(df$benign_malignant)
+df$benign_malignant <- ifelse(df$benign_malignant == "benign", 1,0)
+df$sex <- ifelse(df$sex == "female", 1,0)
+
+df4 <- subset(df, select = -c(X, image_id))
+
+
+#6. Get the summary, Comment about the results.
+#Model
+model <- glm(benign_malignant ~ ., data = df4, family = binomial)
+summary(model)
+```
+Pixel _y, sex, full_img_size, red are not statistically significant.As for the statistically significant variables blue has the lowest p-value indicating a strong association between the blue colour of the mole and the benign_malignant.
+```{r}
+#4. Discuss about multicollinearity.
+#Detecting multicollinearity
+#The R function vif() [car package] can be used to detect multicollinearity in a regression model:
+car::vif(model)
+```
+Variance inflation factor (VIF) is used for detecting the multicollinearity in a model, which measures the correlation and strength of correlation between the independent variables in a regression model.If the value of VIF is less than 1: no correlation - If the value of VIF is between 1-5, there is moderate correlation. If the value of VIF is above 5: severe correlation.Thus since the VIF scores for the predictor variables pixels_x, pixels_y, green,blue, red, full_img_size  are above 5 it shows very high correlation.The VIF scores for the variables clin_size_long_diam_mm,non_overlapping_rate ,corners, sex and age_approx are between 1-5 thus indicating moderate correlation.
+
+```{r}
+#7. Apply PCA. Comment.
+#PCA
+#Principal Component Analysis is based on only independent variables. 
+pc <- prcomp(df4[,-12],
+             center = TRUE,
+            scale. = TRUE)
+summary(pc)
+```
+Here we get eleven principal components named PC1-11. Each of these explains a percentage of the total variation in the dataset. For example, PC1 explains nearly 42% of the total variance i.e. around two-fifths of the information of the dataset can be encapsulated by just that one Principal Component. PC2 explains 15% and so on. 
+
+```{r}
+#8. Draw a PCA plot. Comment.
+pc.plot <- autoplot(pc,  data = df4)
+pc.plot
+
+```
+Plotting a PCA entails creating a scatterplot of the first two principal components PC1 and PC2. These plots reveal the features of data such as non-linearity and departure from normality. PC1 and PC2 are evaluated for each sample vector and plotted. 
+
+```{r}
+#9. Select the best number of PCs for your data.
+fviz_eig(pc)
+```
+
+We select all the components up to the point where the bend occurs in the Scree Plot. In the above plot, the bend occurs at index 2. So, we decide to select the components at index 0 and index 1 and index 2 (a total of three components).
+
+```{r}
+#10. Search for correlation between the PC’s (create a heatmap or correlation matrix, etc). Comment.
+correlations <- cor(pc$x[,c(0:3)])
+corrplot::corrplot(correlations,method = "square", tl.col = "black")
+
+```
+Positive correlations are displayed in blue and negative correlations in red color. Color intensity are proportional to the correlation coefficients.On the right side the legend color shows the correlation coefficients and the corresponding colors.From the above plot there are no negative correlation coefficients.
+ 
+```{r}
+#11. Partition your data as train and test.
+#make this reproducible
+set.seed(1)
+
+#use 70% of dataset as training set and 30% as test set
+sample <- sample(c(TRUE, FALSE), nrow(df), replace=TRUE, prob=c(0.7,0.3))
+train  <- df[sample, ]
+test   <- df[!sample, ]
+
+```
+
+```{r}
+#12. Run logistic regression model again to your train PC data.
+#Selecting only relevant variables
+train <- subset(train, select = -c(X, image_id))
+test <- subset(test, select = -c(X, image_id))
+
+model2 <- glm(benign_malignant ~ ., data = train, family = binomial)
+
+#13. Get the summary, Comment about the results.
+summary(model2)
+```
+
+The variables pixel _y,Pixel_x ,sex, full_img_size,corners, red are not statistically significant.As for the statistically significant variables blue has the lowest p-value indicating a strong association between the blue colour of the mole and the benign_malignant.
+
+```{r}
+#14. Test you model using the test set. Comment.
+##Predictions on the test set
+
+predictions <- predict(model2, test, type="response")
+pr <- prediction(predictions,test$benign_malignant)
+
+# Confusion matrix on test set
+table(test$benign_malignant, predictions >= 0.5)
+```
+
+
+```{r}
+#Accuracy
+77/nrow(test)
+```
+We can see that the accuracy of the model on the test data is approximately 74.7 percent.But this can be improved with the use of PCA.
+
+```{r}
+#PCA to increase the accuracy
+pca <- prcomp(train, center = TRUE, scale = TRUE)
+summary(pca)
+```
+
+```{r}
+#New Model
+set.seed(42)
+pca_data <- data.frame(benign_malignant=train[,"benign_malignant"],pca$x[,0:3])
+model_pca <- glm(benign_malignant ~ .,data= pca_data,family = binomial)
+test_data_pca <- predict(pca,newdata = test)
+
+#The model Performance Metrics
+prob <- predict(model_pca , newdata = data.frame(test_data_pca[,1:6]),type = "response")
+pr <- prediction(prob,test$benign_malignant)
+
+# Confusion matrix on test set
+table(test$benign_malignant, prob >= 0.5)
+
+##Accuracy
+85/nrow(test)
+```
+The accuracy is 82.5%.An accuracy of above 80% indicates a good model
+```{r}
+#16. Create a ROC curve to further assess the quality of it. Comment.
+ perf <- performance(pr,measure = "tpr",x.measure = "fpr")
+plot(perf)
+auc(test$benign_malignant,predictions)
+```
+The ROC curve represents the value’s probability curve, whereas the AUC is a measure of the separability of different groups of values/labels.The higher the AUC score, the better the prediction of the predicted values.Our AUC score is 0.79
