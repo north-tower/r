@@ -1,0 +1,114 @@
+---
+title: "ChickWeight"
+output:
+  html_document:
+    df_print: paged
+---
+ 
+Loading the required libraries
+```{r}
+library(tidyverse)
+library(data.table)
+```
+
+Function 1
+```{r}
+func1 <- function(dataframe){
+ 
+ attach(dataframe)
+ head(dataframe)
+ 
+ baseline<-mean(dataframe$weight)
+
+ dataframe$percent.increase.from.baseline <- (dataframe$weight/baseline)*100
+
+ dataframe$increase.from.baseline <- dataframe$weight - baseline
+ 
+ dataframe
+
+}
+attach(ChickWeight)
+func1(ChickWeight)
+```
+
+Function 2
+```{r}
+#Making increase and percent increase
+baseline<-mean(ChickWeight$weight)
+
+ChickWeight$percentage.increase.from.baseline <- (ChickWeight$weight/baseline)*100
+ChickWeight$increase.from.baseline <- ChickWeight$weight - baseline
+
+#Arguments
+#type_of_weight=weight,percentage.increase.from.baseline
+#diet=0(for all diets),1(for diet 1),2(for diet 2),3(for diet 3), 4(for diet 4)
+#colour1,colour2,colour3,colour4 = For the colour scheme
+#lowerTime,upperTime = For setting the time ranges
+
+func2  <- function(type_of_weight,diet=0,colour1,colour2,colour3,colour4,lowerTime=0,upperTime=21){
+  if (lowerTime > 0){
+      if (diet > 0){
+      ss <- subset(ChickWeight, Diet == diet )
+      ss <- subset(ChickWeight, Time >= lowerTime & Time <= upperTime)
+      ggplot(data = ss, aes(x = Time, y = weight)) + 
+      stat_summary() + 
+      geom_smooth(method="lm",se=FALSE,colour=colour1,formula=y ~ x) 
+      }else{
+       ChickWeight = subset(ChickWeight,  Time >= lowerTime & Time <= upperTime)
+       ggplot(data=ChickWeight,aes(x=Time,y=type_of_weight,color=Diet))+
+       stat_summary()+
+       geom_smooth(method="lm",se=FALSE,formula=y~x)+scale_color_manual(values=c(colour1,colour2,colour3,        colour4))
+      }
+  }else{
+    if (diet > 0){
+      ss <- subset(ChickWeight, Diet == diet )
+      ss <- subset(ChickWeight, Time >= lowerTime & Time <= upperTime)
+      ggplot(data = ss, aes(x = Time, y = weight)) + 
+      stat_summary() + 
+      geom_smooth(method="lm",se=FALSE,colour=colour1,formula=y~x) 
+      }else{
+       ChickWeight = subset(ChickWeight,  Time >= lowerTime & Time <= upperTime)
+       ggplot(data=ChickWeight,aes(x=Time,y=type_of_weight,color=Diet))+
+       stat_summary()+
+       geom_smooth(method="lm",se=FALSE,formula=y~x)+scale_color_manual(values=c(colour1,colour2,colour3,        colour4))
+      }
+    
+  }
+}
+
+```
+
+
+
+```{r}
+
+func2(ChickWeight$weight,1,"green","#999999", "#E69F00","#56B4E9",10,15)
+
+```
+```{r}
+func2(ChickWeight$weight,0,"green","#999999", "#E69F00","#56B4E9",0,21)
+```
+
+
+
+Function 3
+```{r}
+
+func3=function(diet){
+  rela<-subset(ChickWeight,Diet==diet)
+  r<-mean(rela$weight)
+  ChickWeight$increase.from.reference<-(ChickWeight$weight/r)*100
+  
+  ggplot(data=ChickWeight,aes(x=Time,y=increase.from.reference,color=Diet))+
+    stat_summary(data=subset(ChickWeight,Diet != diet ),aes(Diet,col=as.character(diet)),fun = mean, geom="line")+geom_point(data=subset(ChickWeight,Diet != diet ),stat="summary",fun.y="mean")+
+    geom_smooth(data=subset(ChickWeight,Diet != diet),
+                aes(Time,weight,color=factor(Diet)),method="lm",se=FALSE)+
+    scale_color_manual(values=c("green","#999999", "#E69F00","#56B4E9"))+     scale_y_continuous(labels = scales::percent_format(scale = 1))
+  
+}
+
+func3(1)
+```
+```{r}
+func3(2)
+```
