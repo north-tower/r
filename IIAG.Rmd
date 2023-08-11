@@ -1,0 +1,97 @@
+---
+title: "IIAG"
+output:
+  html_document:
+    df_print: paged
+---
+
+Libraries
+```{r}
+library(stargazer)
+library(moments)
+
+```
+
+```{r}
+df <- read.csv("IIAG.csv")
+#variables in use
+df$AbsForcLab <- suppressWarnings(as.numeric(df$AbsForcLab))
+df$AbsGovViolenceCivACLED <- suppressWarnings(as.numeric(df$AbsGovViolenceCivACLED))
+df$EffFightHumTrafUSDS <- suppressWarnings(as.numeric(df$EffFightHumTrafUSDS ))
+df$AbsCrim <- suppressWarnings(as.numeric(df$AbsCrim))
+
+#Removing missing variables
+na.omit(df)
+```
+
+#descriptive statistics
+```{r, results='asis', echo = FALSE , eval=TRUE, warning=FALSE, message=FALSE}
+stargazer(df[,c("AbsForcLab","AbsGovViolenceCivACLED","EffFightHumTrafUSDS","AbsCrim")], header=FALSE, type='html', title="Descriptive Statistics",digits=1)
+
+```
+#correlation matrix
+```{r, results='asis', echo = FALSE , eval=TRUE, warning=FALSE, message=FALSE}
+stargazer(cor(df[,c("AbsForcLab","AbsGovViolenceCivACLED","EffFightHumTrafUSDS","AbsCrim")],use="complete.obs") ,header=FALSE, type='html', title="Correlation Matrix",digits=1)
+
+```
+The further away the correlation coefficient is from zero, the stronger the relationship between the two variables.
+
+#Are the distributions of any component measures highly skewed
+```{r}
+
+skewness(df$AbsForcLab,na.rm = TRUE)
+skewness(df$AbsGovViolenceCivACLED, na.rm = TRUE)
+skewness(df$EffFightHumTrafUSDS, na.rm = TRUE)
+skewness(df$AbsCrim,na.rm = TRUE)
+
+```
+If the coefficient of skewness is close to 0 i.e. between -0.5 to +0.5, then the data is said to be symmetric.only the "EffFightHumTrafUSDS" variable in our case is symmetric and does not require scaling.
+
+#perform log transformation on the other three variables
+```{r}
+df$AbsForcLab_log <- log(df$AbsForcLab)
+df$AbsGovViolenceCivACLED_log <- log(df$AbsGovViolenceCivACLED)
+df$EffFightHumTrafUSDS_log <- log(df$EffFightHumTrafUSDS)
+df$AbsCrim_log <- log(df$AbsCrim)
+
+```
+#transform the measures onto a common scale using z-scores
+```{r}
+#standardize AbsForcLab
+df$AbsForcLab <- (df$AbsForcLab- mean(df$AbsForcLab)) / sd(df$AbsForcLab)
+#standardize AbsGovViolenceCivACLED
+df$AbsGovViolenceCivACLED<-(df$AbsGovViolenceCivACLED-mean(df$AbsGovViolenceCivACLED))/sd(df$AbsGovViolenceCivACLED)
+#standardize df$EffFightHumTrafUSDS
+df$EffFightHumTrafUSDS <- (df$EffFightHumTrafUSDS- mean(df$EffFightHumTrafUSDS)) / sd(df$EffFightHumTrafUSDS)
+#standardize AbsForcLab
+df$AbsCrim <- (df$AbsCrim - mean(df$AbsCrim)) / sd(df$AbsCrim)
+```
+
+#Do you take an unweighted arithmetic mean of the rescaled indicators
+```{r, results='asis', echo = FALSE , eval=TRUE, warning=FALSE, message=FALSE}
+stargazer(df[,c("AbsForcLab_log","AbsGovViolenceCivACLED_log","EffFightHumTrafUSDS_log","AbsCrim_log")], header=FALSE, type='html', title="Descriptive Statistics",digits=1,  summary.stat=c("n","mean"))
+
+```
+The geometric mean introduces Nas as shown below
+```{r}
+apply(df[,c("AbsForcLab_log","AbsGovViolenceCivACLED_log","EffFightHumTrafUSDS_log","AbsCrim_log")], 2, function(x) exp(mean(log(x))))
+
+
+```
+
+#identify about three measures not in the index that you would expect to be correlated with the index
+```{r, results='asis', echo = FALSE , eval=TRUE, warning=FALSE, message=FALSE}
+#the three other measures
+df$AbsViolEvStateConfACLED <- suppressWarnings(as.numeric(df$AbsViolEvStateConfACLED))
+df$AbsNonStateConfUCDP <- suppressWarnings(as.numeric(df$AbsNonStateConfUCDP))
+df$AbsViolEvNonStateConfACLED <- suppressWarnings(as.numeric(df$AbsViolEvNonStateConfACLED))
+
+
+
+stargazer(cor(df[,c("AbsViolEvStateConfACLED","AbsNonStateConfUCDP","AbsViolEvNonStateConfACLED")],use="complete.obs") ,header=FALSE, type="html", title="Correlation Matrix",digits=1)
+
+```
+The further away the correlation coefficient is from zero, the stronger the relationship between the two variables.
+
+
+
