@@ -1,0 +1,90 @@
+---
+title: "Linear"
+output: html_notebook
+---
+
+ 
+Products: 
+```{r}
+#profit per unit 
+XK_1010 <- 3500 
+XP_1020 <- 5500
+```
+Aluminium
+```{r}
+#Tonnes Aluminium per unit 
+XK_1010A <- 2 
+XP_1020A <- 4    
+```
+Labour
+```{r}
+XK_1010L <- 6
+XP_1020L <- 8.5 
+```
+1. determine the number of units XK-1010 and XP-1020 should produce and the generated profit in the next month.
+```{r}
+#Maximum 25,000 tonnes aluminium in upcoming month 
+maxA <- 25000
+#Demand 
+#XP-1010  – No demand limit 
+#XP-1020  – demand limit 3,800 units
+#Amount of aluminium 3800 unit XP-1020 will require
+ XP_1020T<-XP_1020A*3800
+#Number of XP-1010 units that will be produced
+ W<-maxA-XP_1020T
+XK_1010U <- W/XK_1010A
+print(XK_1010T)
+#Generated profit
+XK_1010P <- XK_1010 *  XK_1010U
+XP_1020P <- XP_1020 * 3800
+print("Generated Profits:")
+print(XK_1010P)
+print(XP_1020P)
+```
+2. needs to know the labour hours and aluminium required and/or unused.
+```{r}
+maxH <- 50000
+#Number of hours to produce XK_1020H units
+XP_1020H <- XP_1020L * 3800
+#Number of hours to produce XK_1010A units
+XK_1010H <- maxH - XP_1020H
+print(XP_1020H)
+print(XK_1010H)
+
+```
+3.
+```{r}
+#increased XK_1020 UNITS
+XP_1020I <- 3800 * 1.2
+#Generated profit
+XP_1020P2 <- XP_1020 * XP_1020I
+print(XP_1020P2)
+#Increased profit
+print(XP_1020P2-XP_1020P)
+```
+4
+```{r}
+u <- maxH * 1.3
+#Number of hours required for XP_1020 
+q <- XP_1020L * 3800
+#Number of remaining hours
+a <- u - q
+#Number of XK_1010 units
+XK_10102 <- a/XK_1010L
+print(XK_10102)
+#Generated profits
+XP_1020P3 <- 3800 * XP_1020
+XK_1010P2 <- XK_10102 * XK_1010
+print("Generated profits:")
+print(XP_1020P3)
+print(XK_1010P2)
+#aluminium required
+XP_1020T <- XP_1020A * 3800
+XK_1010T1 <- XK_1010A * XK_10102
+print("Alumininum required:")
+print(XP_1020T)
+print(XK_1010T1)
+
+```
+
+
