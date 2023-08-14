@@ -1,0 +1,59 @@
+---
+title: "Simr"
+output: html_notebook
+---
+
+
+```{r}
+#Loading required packages
+library(simr)
+simrOptions(progress=FALSE)
+```
+
+
+```{r}
+#Creating a set of covariates 
+rate <- rnorm(12,0.27,1)
+time <- 1:12
+id <- 1:12
+wavelengths <- seq(1, 12, by = 1.0)
+id <- factor(1:6)
+id_full <- rep(id, 2)
+
+Peak1 <- rnorm(wavelengths, 2, 15)
+Peak2 <- rnorm(wavelengths, 4, 12)
+Peak3 <- rnorm(wavelengths, 6, 9)
+Peak4 <- rnorm(wavelengths, 8, 13)
+Peak5 <- rnorm(wavelengths, 10, 10)
+Peak6 <- rnorm(wavelengths, 12, 8)
+rate <- abs(colSums(rbind(0.27 * Peak1, Peak2, Peak3, Peak4, Peak5,Peak6)))
+covars <- data.frame(time=time,rate=rate,id=subj_full)
+head(covars)
+```
+
+```{r}
+#Fitting the model
+b <- c(2, -0.1) # fixed intercept and slope
+V1 <- 0.5 # random intercept variance
+V2 <- matrix(c(0.5,0.05,0.05,0.1), 2) # random intercept and slope variance-covariance matrix
+#Using makeGlmer to create a simulated model
+model <- makeGlmer(z ~ rate + (time|id), family="poisson", fixef=b, VarCorr=V2,data=covars)
+summary(model)
+
+```
+
+```{r}
+#Power of the model
+#The powerSim function allows us to estimate the power to detect a specific effect in the model
+sim_treat <- powerSim(model, nsim=12)
+sim_treat
+
+```
+
+```{r}
+#Power Curve
+p_curve <- powerCurve(model, nsim=12, alpha=.05, along=
+            "id")
+plot(p_curve)
+
+```
