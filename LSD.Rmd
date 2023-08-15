@@ -1,0 +1,32 @@
+---
+title: "LSD"
+author: "north-tower"
+date: "2023-08-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#create data frame
+df <- data.frame(treatment = rep(c("A", "B", "C", "D", "E"), each = 10),
+                   score = c(10,12,10,11,12,9,11,3,10,7,14,14,14,12,16,10,14,15,10,15,17,13,15,12,16,10,14,15,10,15,19,15,19,14,23,12,17,17,15,19,20,19,23,16,20,18,21,22,18,20 ))
+```
+
+```{r }
+#fit one-way ANOVA
+model <- aov(score ~ treatment, data = df)
+#view summary of one-way ANOVA
+summary(model)
+```
+```{r}
+library(agricolae)
+
+#perform Fisher's LSD
+print(LSD.test(model,"treatment"))
+            
+```
+
+The portion of the output that we’re most interested in is the section titled $groups. The techniques that have different characters in the groups column are significantly different.
