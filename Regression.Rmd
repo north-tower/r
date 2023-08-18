@@ -1,0 +1,45 @@
+---
+title: "Regression"
+author: "north-tower"
+date: "2023-08-17"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r echo=TRUE}
+#Loading required R packages
+library(tidyverse)
+```
+
+
+```{r}
+# Reading in the data
+data <- data.frame(
+  x1 = c(19, 19, 10, 17, 19, 12, 18, 10, 15, 15),
+  y = c(61, 47, 75, 63, 79, 75, 67, 47, 71, 84),
+  x2 = c(11, 4, 8, 12, 5, 12, 6, 14, 13, 11)
+)
+
+# Estimates the parameters B1, B2 in the regression model y=B0 + B1x1 + B2x2 + e where e ~ N(0, δ2)
+#Building Model 
+model <- lm(y ~ x1 + x2, data = data)
+model$coefficients
+```
+
+```{r}
+# Estimates the parameters a,b,c in the regression  model y=a + b *x1 +exp(c*x2) +e where e ~ N(0, δ2)
+
+# Transforming the equation
+# Taking logarithm of both sides: log(y - a - b * x1) = c * x2 + log(e)
+# Now it's in a linear form: log(y - a - b * x1) = c * x2 + log(e)
+# So, we can perform linear regression on this transformed equation
+# Perform linear regression
+model <- lm(log(y) ~ x2 + x1, data = data)
+model$coefficients
+```
+
+
