@@ -1,0 +1,501 @@
+---
+title: "Data Analysis"
+output:
+  word_document: default
+  html_notebook: default
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r}
+library(caret)
+library(dplyr)
+library(class)
+library(randomForest)
+library(e1071)
+#library(MASS)
+```
+#Data Description:
+
+The project includes three data sets named “design”, “yarn consumption” and “result”. Here, all three data sets are gathered to examine the quality of data to produce knitted fabric with high quality design. Thus, data set is obtained on the basis of design id for each fabric which determines unique design for each id. The data set named “design.csv” includes eight variables among which design id is the attribute specifying each product on the basis of design. Further, remaining seven variables are quantitative variables. Here, knit per cm indicates the rupees required to knit per cm cloth while stretch indicates the strength up to which any cloth can be stretched. Further, PRL represent the pattern repeat length of each fabric and PRW indicates the width of fabric on which pattern is repeating. Needle setup is representing the type of needle being used for each type of fabric and MC Type represents the machine type which is knitting each type of fabric. Here machine type is qualitative variable having five machine types. Thus, as a whole design data indicates the variables required to design any fabric and for designing any fabric machine type, needle, length and width of fabric act as important parameters so they are measured on both qualitative and quantitative scales. 
+The other data set is required to examine the properties of fabric thus for each design of fabric its yarn type, no of fabrics for that particular yarn type and design id produced, MperRepeat and percentage of fabric used for each yarn type. All of these are quantitative variables while yarn type is measured on qualitative scale having 41 attributes. 
+The third data set is obtained for examining the results produced by each type of design and yarn type. It includes eight variables among which two of them are measured on qualitative and remaining on quantitative scales. Here, PRL, PRW, Stretch, MC type indicate pattern run length, pattern run width, stretch and machine type of each design while FRJ indicates feed rate jarcard, FRP feed rate pillar, feed rate lycra which are yarn tension rates.   
+Collecting data:
+First step while performing any analysis is to read the data in specific software that is required for analysis so, we would read all three types of data sets in R. As, all three data sets are in csv files so they must be read in csv format and instead of specifying the directory file.choose command would be used so anyone can locate the folder in which data is stored.
+
+#Collecting data
+Reading the data into r
+```{r}
+
+design=read.table(file.choose(),sep=",",header=T)
+design[1,]
+```
+Yarn data
+```{r}
+
+yarn=read.table(file.choose(),sep=",",header=T)
+yarn[1,]
+```
+Results data
+```{r}
+
+results=read.table(file.choose(),sep=",",header=T)
+results[1,]
+```
+
+
+#Data cleaning, exploring and preparing the data:
+First step while performing any analysis is to clean the data set from missing values and outliers to improve quality of data set. Thus, we will examine for missing values by using both qualitative and quantitative techniques. Here, for exploring missing values using quantitative techniques we would use summary statistics while for qualitative method we would use either boxplot or histogram. 
+
+Summary statistics
+Design data
+```{r}
+summary(design)
+```
+
+Here, summary statistics indicates no missing values for design type of variables so no adjustment is required for removing missing values. Now, we would examine for missing values using histogram.
+
+Histogram of all variables 'design data'
+```{r}
+par(mar = rep(2, 4))
+par(mfrow=c(4,2))
+  hist(design$Knit.Per.cm,xlab="Knit per cm",main="Histogram of Knit per cm")
+  hist(design$Stretch,xlab="Stretch",main="Histogram of Stretch")
+  hist(design$Courses,xlab="Courses",main="Histogram of Courses")
+  hist(design$PRL,xlab="PRL",main="Histogram of PRL")
+  hist(design$PRW,xlab="PRW",main="Histogram of PRW")
+  hist(design$NeedleSetup,xlab="NeedleSetup",main="Histogram of NeedleSetup")
+  hist(design$NoBands,xlab="NoBands",main="Histogram of NoBands")
+
+```
+Here, we have used the command par(mfrow) because we want to plot multiple variables in a single graph. Further its parameters are selected as 4 and 2 which indicates 4 rows and 2 columns for plotting the graphs. The histogram indicates that there are no missing values for this data set because no frequency appeared for missing values. Further distribution can be observed using this histogram as well. It explores positively skewed distribution for all variables while negatively skewed for “Needle setup”. Similarly, for “yarn” data summary statistics and histograms are represented below;
+
+
+Yarn data
+```{r}
+summary(yarn)
+```
+Only three quantitative variables exist for this data set. Thus, summary statistics produce no missing values for this data set as well. Further, we will explore using histograms.
+
+
+Histogram of all variables 'yarn data'
+```{r}
+par(mfrow=c(3,1))
+  hist(yarn$Percentage,xlab="Percentages",main="Histogram of Percentages of yarn")
+  hist(yarn$MperRepeat,xlab="MPer Repeat",main="Histogram of MPer Repeat")
+  hist(yarn$Count,xlab="Count",main="Histogram of Count")
+  
+```
+Similar case is followed by considering the parameters as 3 and 1 while 3 indicates 3 plots in a row and 1 is for only one column in which plots can be selected. Histograms are again representing no missing values while all of the variables have positively skewed distributions. Now, missing value analysis for third data set named results;
+
+
+Results data
+```{r}
+summary(results)
+```
+Here, summary statistics indicated that missing values exist for two variables named “PRL” and “PRW”. So, for unbiased analysis we have to remove these missing values. Thus, for removing missing values we would use na.omit command in R.
+
+
+removing missing values in the design data
+```{r}
+new.results=na.omit(results)
+  summary(new.results)
+```
+After using na.omit command we can observe from summary statistics of new data that no missing values exist. So, now we can apply further analysis on it. Later, histogram discusses the distribution of data set.
+
+
+Histogram of all variables 'design data'
+```{r}
+par(mfrow=c(3,2))
+  hist(new.results$PRL,xlab="PRL",main="Histogram of Pattern repeat length")
+  hist(new.results$PRW,xlab="PRW",main="Histogram of Pattern repeat width")
+  hist(new.results$Stretch,xlab="Stretch",main="Histogram of Stretch")
+  hist(new.results$FRJ,xlab="FRJ",main="Histogram of Feed rate Jarcard")
+  hist(new.results$FRP,xlab="FRP",main="Histogram of Feed rate pillar")
+  hist(new.results$FRL,xlab="FRL",main="Histogram of Feed rate lycra")
+  
+```
+The histograms represent no missing values while positively skewed distribution for all variables. 
+Now, we have examined all three data sets separately for missing values and removed the missing values. Further, we will explore outliers for all these three data sets and if outlier exist than either removing them or replacing them by averaged values. So, outliers can be discussed by boxplots.
+
+Box plots for “design” data set
+```{r}
+par(mar = rep(2, 4))
+  par(mfrow=c(4,2))
+  boxplot(design$Knit.Per.cm,xlab="Knit per cm",main="Histogram of Knit per cm")
+boxplot(design$Stretch,xlab="Stretch",main="Histogram of Stretch")
+  boxplot(design$Courses,xlab="Courses",main="Histogram of Courses")
+  boxplot(design$PRL,xlab="PRL",main="Histogram of PRL")
+  boxplot(design$PRW,xlab="PRW",main="Histogram of PRW")
+  boxplot(design$NeedleSetup,xlab="NeedleSetup",main="Histogram of NeedleSetup")
+  boxplot(design$NoBands,xlab="NoBands",main="Histogram of NoBands")
+```
+
+The boxplots for design data set indicated missing values for some of the variables named “Knit per cm”, “Courses”, “PRL”, “PRW”, “No Bands”. So, we have to remove these outliers. 
+
+#Removing outliers in the design dataset
+```{r}
+par(mar = rep(2, 4))
+Q <- quantile(design$Knit.Per.cm, probs=c(.25, .75), na.rm = FALSE)
+  iqr <- IQR(design$Knit.Per.cm)
+  up <-  Q[2]+1.5*iqr # Upper Range  
+  low<- Q[1]-1.5*iqr # Lower Range?
+  eliminated<- subset(design,design$Knit.Per.cm> (Q[1] - 1.5*iqr) &design$Knit.Per.cm< (Q[2]+1.5*iqr))
+  eliminated[1,]
+Q <- quantile(design$Courses, probs=c(.25, .75), na.rm = FALSE)
+  iqr <- IQR(design$Courses)
+  up <-  Q[2]+1.5*iqr # Upper Range  
+  low<- Q[1]-1.5*iqr # Lower Range?
+  eliminated<- subset(design,design$Courses> (Q[1] - 1.5*iqr) &design$Courses< (Q[2]+1.5*iqr))
+Q <- quantile(design$PRL, probs=c(.25, .75), na.rm = FALSE)
+  iqr <- IQR(design$PRL)
+  up <-  Q[2]+1.5*iqr # Upper Range  
+  low<- Q[1]-1.5*iqr # Lower Range?
+  eliminated<- subset(design,design$PRL> (Q[1] - 1.5*iqr) &design$PRL< (Q[2]+1.5*iqr))
+Q <- quantile(design$PRW, probs=c(.25, .75), na.rm = FALSE)
+  iqr <- IQR(design$PRW)
+  up <-  Q[2]+1.5*iqr # Upper Range  
+  low<- Q[1]-1.5*iqr # Lower Range?
+  eliminated<- subset(design,design$PRW> (Q[1] - 1.5*iqr) &design$PRW< (Q[2]+1.5*iqr))
+Q <- quantile(design$NoBands, probs=c(.25, .75), na.rm = FALSE)
+  iqr <- IQR(design$NoBands)
+  up <-  Q[2]+1.5*iqr # Upper Range  
+  low<- Q[1]-1.5*iqr # Lower Range?
+  eliminated<- subset(design,design$NoBands> (Q[1] - 1.5*iqr) &design$NoBands< (Q[2]+1.5*iqr))
+par(mfrow=c(4,2))
+boxplot(eliminated$Knit.Per.cm,xlab="Knit per cm",main="Histogram of Knit per cm")
+boxplot(eliminated$Stretch,xlab="Stretch",main="Histogram of Stretch") 
+boxplot(eliminated$Courses,xlab="Courses",main="Histogram of Courses")
+  boxplot(eliminated$PRL,xlab="PRL",main="Histogram of PRL")
+  boxplot(eliminated$PRW,xlab="PRW",main="Histogram of PRW")
+  boxplot(eliminated$NeedleSetup,xlab="NeedleSetup",main="Histogram of NeedleSetup")
+  boxplot(eliminated$NoBands,xlab="NoBands",main="Histogram of NoBands")
+```
+
+Their existed outliers for data “design”. So, we have to remove these outliers from data set and outliers are removed using IQR rule for which upper and lower quartiles are calculated and any value outside this range is considered as outlier and it is removed. Thus, after removing the outliers we have observed boxplots above. So, outliers are removed from this data set now we move towards next data set named “yarn”.
+Outliers for “yarn” data set are examined by boxplot below;
+
+Boxplot of yarn dataset
+```{r}
+ 
+par(mfrow=c(3,1))
+boxplot(yarn$Percentage,xlab="Percentages",main="Histogram of Percentages of yarn")
+boxplot(yarn$MperRepeat,xlab="MPer Repeat",main="Histogram of MPer Repeat")
+boxplot(yarn$Count,xlab="Count",main="Histogram of Count")
+```
+Three variables are plotted in three separate rows in single column each. Here, outliers exist for all the variables so we have to remove them using IQR rule. 
+
+#Removing outliers in the yarn dataset
+```{r}
+Q <- quantile(yarn$Percentage, probs=c(.25, .75), na.rm = FALSE)
+  iqr <- IQR(yarn$Percentage)
+  up <-  Q[2]+1.5*iqr # Upper Range  
+  low<- Q[1]-1.5*iqr # Lower Range?
+  eliminated<- subset(yarn,yarn$Percentage> (Q[1] - 1.5*iqr) &yarn$Percentage< (Q[2]+1.5*iqr))
+Q <- quantile(yarn$MperRepeat, probs=c(.25, .75), na.rm = FALSE)
+  iqr <- IQR(yarn$MperRepeat)
+  up <-  Q[2]+1.5*iqr # Upper Range  
+  low<- Q[1]-1.5*iqr # Lower Range?
+  eliminated<- subset(eliminated,yarn$MperRepeat> (Q[1] - 1.5*iqr) &yarn$MperRepeat< (Q[2]+1.5*iqr))
+Q <- quantile(yarn$Count, probs=c(.25, .75), na.rm = FALSE)
+  iqr <- IQR(yarn$Count)
+  up <-  Q[2]+1.5*iqr # Upper Range  
+  low<- Q[1]-1.5*iqr # Lower Range?
+  eliminated<- subset(eliminated,yarn$Count> (Q[1] - 1.5*iqr) &yarn$Count< (Q[2]+1.5*iqr))
+boxplot(eliminated$Percentage,xlab="Percentages",main="Histogram of Percentages of yarn")
+boxplot(eliminated$MperRepeat,xlab="MPer Repeat",main="Histogram of MPer Repeat")
+boxplot(eliminated$Count,xlab="Count",main="Histogram of Count")
+```
+
+Boxplot of design dataset
+```{r}
+par(mfrow=c(3,2))
+boxplot(new.results$PRL,xlab="PRL",main="Histogram of Pattern repeat length")
+boxplot(new.results$PRW,xlab="PRW",main="Histogram of Pattern repeat width")
+boxplot(new.results$Stretch,xlab="Stretch",main="Histogram of Stretch")
+boxplot(new.results$FRJ,xlab="FRJ",main="Histogram of Feed rate Jarcard")
+boxplot(new.results$FRP,xlab="FRP",main="Histogram of Feed rate pillar")
+boxplot(new.results$FRL,xlab="FRL",main="Histogram of Feed rate lycra")
+```
+
+#Removing outliers in the design dataset
+```{r}
+Q <- quantile(new.results$PRL, probs=c(.25, .75), na.rm = FALSE)
+  iqr <- IQR(new.results$PRL)
+  up <-  Q[2]+1.5*iqr # Upper Range  
+  low<- Q[1]-1.5*iqr # Lower Range?
+  eliminated<- subset(new.results,new.results$PRL> (Q[1] - 1.5*iqr) &new.results$PRL< (Q[2]+1.5*iqr))
+Q <- quantile(new.results$PRW, probs=c(.25, .75), na.rm = FALSE)
+  iqr <- IQR(new.results$PRW)
+  up <-  Q[2]+1.5*iqr # Upper Range  
+  low<- Q[1]-1.5*iqr # Lower Range?
+  eliminated<- subset(new.results,new.results$PRW> (Q[1] - 1.5*iqr) &new.results$PRW< (Q[2]+1.5*iqr))
+Q <- quantile(new.results$Stretch, probs=c(.25, .75), na.rm = FALSE)
+  iqr <- IQR(new.results$Stretch)
+  up <-  Q[2]+1.5*iqr # Upper Range  
+  low<- Q[1]-1.5*iqr # Lower Range?
+  eliminated<- subset(new.results,new.results$Stretch> (Q[1] - 1.5*iqr) &new.results$Stretch< (Q[2]+1.5*iqr))
+Q <- quantile(new.results$FRJ, probs=c(.25, .75), na.rm = FALSE)
+  iqr <- IQR(new.results$FRJ)
+  up <-  Q[2]+1.5*iqr # Upper Range  
+  low<- Q[1]-1.5*iqr # Lower Range?
+  eliminated<- subset(new.results,new.results$FRJ> (Q[1] - 1.5*iqr) &new.results$FRJ< (Q[2]+1.5*iqr))
+Q <- quantile(new.results$FRP, probs=c(.25, .75), na.rm = FALSE)
+  iqr <- IQR(new.results$FRP)
+  up <-  Q[2]+1.5*iqr # Upper Range  
+  low<- Q[1]-1.5*iqr # Lower Range?
+  eliminated<- subset(new.results,new.results$FRP> (Q[1] - 1.5*iqr) &new.results$FRP< (Q[2]+1.5*iqr))
+Q <- quantile(new.results$FRL, probs=c(.25, .75), na.rm = FALSE)
+  iqr <- IQR(new.results$FRL)
+  up <-  Q[2]+1.5*iqr # Upper Range  
+  low<- Q[1]-1.5*iqr # Lower Range?
+  eliminated<- subset(new.results,new.results$FRL> (Q[1] - 1.5*iqr) &new.results$FRL< (Q[2]+1.5*iqr))
+par(mfrow=c(3,2))
+boxplot(eliminated$PRL,xlab="PRL",main="Histogram of PRL")
+boxplot(eliminated$PRW,xlab="PRW",main="Histogram of Pattern repeat width")
+boxplot(eliminated$Stretch,xlab="Stretch",main="Histogram of Stretch")
+boxplot(eliminated$FRJ,xlab="FRJ",main="Histogram of Feed rate Jarcard")
+boxplot(eliminated$FRP,xlab="FRP",main="Histogram of Feed rate pillar")
+boxplot(eliminated$FRL,xlab="FRL",main="Histogram of Feed rate lycra")
+```
+
+#Normalizing data 'design data'
+```{r}
+preproc1=preProcess(design[,c(2:8)],method=c("center","scale"))
+norm1=predict(preproc1,design[,c(2:8)])
+summary(norm1)
+```
+
+For applying machine learning technique we have to normalize data thus standardizing requires data to be clustered around zero. Here, summary statistics indicated design data is clustered around zero. Now, we would examine the yarn data.
+
+#Normalizing data 'yarn data'
+```{r}
+preproc2=preProcess(yarn[,c(3:5)],method=c("center","scale"))
+norm2=predict(preproc2,yarn[,c(3:5)])
+summary(norm2)
+```
+
+Yarn data is also normalized and summary statistics revealed normalized data.
+
+#Normalizing data 'design data'
+```{r}
+preproc3=preProcess(new.results[,c(2:7)],method=c("center","scale"))
+norm3=predict(preproc3,new.results[,c(2:7)])
+summary(norm3)
+```
+Now, all three data sets are normalized.  Further we would merge the data sets on the basis of design id which is unique identifier among all data sets. 
+
+
+#Merging the datasets
+
+The data sets are merged on the basis of design id and merged data set is shown below;
+```{r}
+new1=cbind(design[,c(1,9)],norm1)
+new2=cbind(yarn[,c(1,2)],norm2)
+new3=cbind(new.results[,c(1,8)],norm3)
+merge=merge(new1,new2,by="DesignID")
+merge[1,]
+```
+Here, merge command shows that data of design and yarn is to be merged while third parameter “by” indicates the variable on the basis of which they are to be merged. Thus, design ID is specified to merge both data sets on the basis of design id.
+
+MC type
+```{r}
+MC.type=rename(new3,"MCType"="MC.type")
+merged=merge(merge,MC.type,by="MCType")
+merged[1,]
+```
+The above command named “MC.type” is used to renamed the variable in third data set same as that of other two data sets. Because both data sets have variable name MC.type and third data set has variable name “MCType” so, they both can’t be merged thus for merging them we have to create same name for both variables. Thus, variable is renamed on the basis of name given in merged data set. After renaming the variable we have to merge the data sets on the basis of variable “MCType” because for all three data sets machine type have same parameters and we have to merge on the basis of them. Thus, first parameter is the data which is tried to merge second parameter is second data set which is set to be merge and third parameter is type of variable for which we have to merge the data set. 
+
+#Training and test set
+
+The method of examining accuracy of models requires training and test data sets. We have to divide the data set in training set and than examine the models obtained from test data to verify for test data set. Here, we would divide the data set into 70% for train data and 30% for test data set. Firstly we have to specify data for training and test set by considering 70% for train data and 30% for test data. 
+```{r}
+dt=sort(sample(nrow(merged),nrow(merged)*.7))
+train=merged[dt,]
+test=merged[-dt,]
+```
+
+The first command “dt:” is used to sample the seventy percent data set for training data than second command for train indicated the data that is partitioned to train data set and second command is used to convert the remaining thirty percent data in test data set. 
+
+#Apply Machine Learning and  Model building
+#Model on train dataset
+
+We don't know which calculations would be great on this issue for sure setups to utilize. We get a thought from the plots that a portion of the classes are to some degree directly distinguishable in certain aspects, so we are anticipating commonly great outcomes. 
+Linear Discriminant Analysis (LDA)
+Classification and Regression Trees (CART).
+k-Nearest Neighbors (kNN).
+Support Vector Machines (SVM) with a linear kernel.
+Random Forest (RF)
+This is a decent combination of basic direct (LDA), nonlinear (CART, kNN) and complex nonlinear strategies (SVM, RF). We reset the irregular number seed before arrive at hurry to guarantee that the assessment of every calculation is performed utilizing the very same information parts. It guarantees the outcomes are straightforwardly practically identical.
+
+```{r}
+control <- trainControl(method="cv", number=10)
+metric <- "Accuracy"
+```
+
+#Linear Discriminant Analysis (LDA)
+
+Library is recalled to run the specific model. Here, command named “control” indicated  the method used for sampling the data and number predicts the replications used for the data set. Next is the parameter specified for which we want to evaluate the models. Here, we want to determine model on the basis of accuracy so, accuracy is specified. Further, we have set seed from which model starts its replications. Later, fit.lda indicates the lda model is to be fitted. Here, first parameter is the dependent variable while later other variables are independent variables. Data set is included from which variables are observed. 
+```{r}
+set.seed(7)
+fit.lda <- train(MCType~Knit.Per.cm+Stretch.x+Courses+PRL.x+PRW.x+NeedleSetup+
+                   NoBands+Count+MperRepeat+Percentage+FRJ+FRP+FRL, data=train, 
+                 method="lda", metric=metric, trControl=control)
+fit.lda
+```
+
+This command is used to examine the fitted values from model LDA. Here, accuracy of model predicts the percentage of machine type which is accurately observed by this model. Further, six classes are specified to examine the machine types. 
+
+#Classification and Regression Trees (CART)
+
+Tree-based methods for arrangement and relapse include separating or portioning the indicator space into various basic areas. These sorts of approaches are known as choice tree strategies and can be applied to both relapse and order issues. At the point when we are foreseeing a quantitive reaction (i.e., assessing a numeric worth), we utilize a relapse tree. At the point when we are foreseeing a subjective reaction (i.e., arranging a perception), we utilize an order tree. Choice trees are non-parametric techniques to segment the information into more modest, more "unadulterated" or homogeneous gatherings called hubs. A straightforward method for characterizing immaculateness in arrangement is by augmenting precision or proportionally by limiting misclassification blunder.
+```{r}
+set.seed(7)
+fit.cart <- train(MCType~Knit.Per.cm+Stretch.x+Courses+PRL.x+PRW.x+NeedleSetup+
+                    NoBands+Count+MperRepeat+Percentage+FRJ+FRP+FRL, data=train, 
+                  method="rpart", metric=metric, trControl=control)
+fit.cart
+```
+#k-Nearest Neighbors (kNN)
+k nearest neighbors is a simple algorithm that stores all available cases and classifies new cases by a majority vote of its k neighbors. This algorithms segregates unlabeled data points into well defined groups.
+
+fit.knn <- train(MCType~Knit.Per.cm+Stretch.x+Courses+PRL.x+PRW.x+NeedleSetup+
+                    NoBands+Count+MperRepeat+Percentage+FRJ+FRP+FRL, data=train, 
+                  method="knn", metric=metric, trControl=control)''
+
+fit.knn
+
+k-Nearest Neighbors 
+
+150 samples
+  4 predictor
+  3 classes: 'setosa', 'versicolor', 'virginica' 
+
+No pre-processing
+Resampling: Cross-Validated (10 fold) 
+Summary of sample sizes: 135, 135, 135, 135, 135, 135, ... 
+Resampling results across tuning parameters:
+
+  k   Accuracy   Kappa
+   5  0.9666667  0.95 
+   7  0.9733333  0.96 
+   9  0.9666667  0.95 
+  11  0.9666667  0.95 
+  13  0.9600000  0.94 
+  15  0.9666667  0.95 
+  17  0.9733333  0.96 
+  19  0.9600000  0.94 
+  21  0.9666667  0.95 
+  23  0.9666667  0.95 
+
+
+#Support Vector Machines (SVM) with a linear kernel.
+support vector machines are supervised learning models with associated learning algorithms that analyze data used for classification and regression analysis. However, they are mostly used in classification problems
+
+svmfit = svm(factor(MCType) ~Knit.Per.cm+Stretch.x+Courses+PRL.x+PRW.x+NeedleSetup+
+                    NoBands+Count+MperRepeat+Percentage+FRJ+FRP+FRL, data = train, kernel = "linear", cost = 10, scale = FALSE)
+print(svmfit)
+
+Call:
+svm.default(x = x, y = y)
+Parameters:
+   SVM-Type:  C-classification 
+ SVM-Kernel:  radial 
+       cost:  1 
+
+Number of Support Vectors:  51
+
+
+
+#Random Forest
+It builds and combines multiple decision trees to get more accurate predictions. It’s a non-linear classification algorithm. Each decision tree model is used when employed on its own. 
+
+
+rf <- randomForest(MCType ~Knit.Per.cm+Stretch.x+Courses+PRL.x+PRW.x+NeedleSetup+
+                    NoBands+Count+MperRepeat+Percentage+FRJ+FRP+FRL, data=train, proximity=TRUE) 
+print(rf)
+
+Call:
+ randomForest(formula = Species ~ ., data = train)
+               Type of random forest: classification
+                     Number of trees: 500
+No. of variables tried at each split: 2
+        OOB estimate of  error rate: 2.83%
+        
+
+
+#Accuracy of each model
+#Linear Discriminant Analysis (LDA)
+```{r}
+fit.lda$results$Accuracy
+```
+#Classification and Regression Trees (CART)
+```{r}
+fit.cart$results$Accuracy
+```
+
+#k-Nearest Neighbors (kNN)
+
+fit.knn$results$Accuracy
+
+[1] 0.97333333
+
+
+#Support Vector Machines (SVM) with a linear kernel
+
+caret::confusionMatrix(train$MCType,svmfit$fitted)
+
+Confusion Matrix and Statistics
+
+            Reference
+Prediction   setosa versicolor virginica
+  setosa         50          0         0
+  versicolor      0         48         2
+  virginica       0          2        48
+
+Overall Statistics
+
+               Accuracy : 0.9733    
+
+#Random Forest
+
+rf$confusion[, 'class.error']
+
+class.error
+No         Yes
+0.07804878 0.45405405
+
+
+#Improving model performance
+#Normalizing using log
+ss <- preProcess(merged, method=c("range"))
+merged <- predict(ss, merged)
+
+
+#Model building
+#Linear Discriminant Analysis (LDA)
+
+library(MASS)
+model <- lda(MCType ~Knit.Per.cm+Stretch.x+Courses+PRL.x+PRW.x+NeedleSetup+
+                    NoBands+Count+MperRepeat+Percentage+FRJ+FRP+FRL, data = train)
+                    
+          
+#Comparative Analysis:
+Assuming option negligible associations exist, every one of them are printed in the event that the line predominance rule for PIs isn't applied as indicated in the legitimate contention rowdom. One PI P1 overwhelms one more P2 assuming that all FIs covered by P2 are likewise covered by P1 and both are not exchangeable. Inessential PIs are recorded in sections in the arrangement yield and toward the finish of the PI part in the boundaries of-fit table, along with their extraordinary inclusion scores under every individual insignificant association.
+The argument requesting divides the causal circumstances in various worldly levels, where earlier contentions can go about as causal circumstances, however not as results for the ensuing transient circumstances.One straightforward method for dividing conditions is to utilize a rundown object, where various parts go about as various worldly levels, in the request for their record in the rundown: conditions from the principal part go about as the most established causal variables, while those from the and the last part will be essential for the latest fleeting level.
+These arguments present a potential better approach for inferring prime implicants and arrangement models,that can prompt various outcomes (for example considerably more miserly) contrasted with the old style QuineMcCluskey. When both of them is altered from the default worth of 0, the minimization strategy is naturally set to "CCubes" and the leftovers are consequently remembered for the minimization.
+
+#Discussion:
+This examination prescribes a method for working on the efficiency of a specific sewing floor. A sewing floor may be halt because of different reasons that should resolve issues previously and on the hour of its emerging quickly except if industrial facility would get gigantic misfortune for that. In this examination, creation information of five days for 20 unique kinds of the weave machine were recorded and contrasted and the objective creation. The majority of the cases, the creation effectiveness were found around 10-30% lower than the designated one since no referenced advances have been carried out then, at that point.. 
+```
+
+
+
+
+
+
+
+
+
+
