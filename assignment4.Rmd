@@ -1,0 +1,201 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+. 
+
+```{r}
+
+craps <- function(ngames) {
+  roll_1 <- sum(ceiling(6*runif(2)))
+  if (roll_1 == 7 | roll_1 == 11) {
+    print( roll_1)
+    }
+  else {
+  dice_roll <- sum(ceiling(6*runif(2)))
+  while (dice_roll != roll_1 & dice_roll != 7 & dice_roll != 11)
+  {
+    dice_roll <- sum(ceiling(6*runif(2)))
+  }
+  if (dice_roll == roll_1){
+    print(dice_roll)
+  } 
+  else print(dice_roll)
+  }
+}
+
+craps(10)
+
+read_data <-  function(filename){
+  e<-read.csv(file = filename, stringsAsFactors = TRUE)
+  
+}
+summary(read_data('grocery_transactions.csv'))
+
+
+basket_with <- subset(carSpeeds, item_name == "cream" )
+
+basket_with$txn_id
+
+basket_with <- function(df, itemname) {
+  basket_with1 <- subset(df, item_name == itemname)
+  basket_with1$txn_id
+}
+
+basket_with(carSpeeds,"fish")
+  
+
+carSpeeds <- read.csv(file = 'grocery_transactions.csv')
+
+summary(carSpeeds)
+
+basket_common <- function(df, item1, item2){
+  x <- subset(carSpeeds, item_name == item1)
+  y <- subset(carSpeeds, item_name == item2)
+  intersect(x$txn_id,y$txn_id)
+}
+
+basket_common(carSpeeds,"chocolate", "white wine")
+
+
+confidence <- function(df, itemA, itemB){
+  x <- subset(carSpeeds, item_name == itemA)
+  y <- subset(carSpeeds, item_name == itemB)
+  n <- (intersect(x$txn_id, y$txn_id))
+  s <- length(n)/nrow(carSpeeds)
+  d <- nrow(x)/nrow(df)
+  s/d
+}
+
+confidence(carSpeeds, "chocolate", "coffee")
+
+
+
+lift <- function(df, itemA, itemB) {
+  a <- subset(df, item_name == itemA)
+  b <- subset(df, item_name == itemB)
+  #baskets containing A and B together.
+  n <- (intersect(a$txn_id, b$txn_id))
+  #fraction containing A and B together.
+  a.b <- length(n)/nrow(df)
+  #fraction baskets containing A.
+  x <- nrow(a)/nrow(df)
+  #fraction baskets containing B
+  y <- nrow(b)/nrow(df)
+  #here is the lift
+  a.b/(x*y)
+}
+
+lift(carSpeeds,"chocolate","coffee")
+
+
+
+
+
+
+
+
+
+
+head(trees)
+attach(trees)
+plot_trees <- function(){
+  par(mfrow=c(1,3))
+  plot(trees$Girth,trees$Height,xlab = "Girth", ylab = "height")
+  plot(trees$Volume,trees$Height,xlab = "Volume", ylab = "height")
+  plot(trees$Volume, trees$Girth,xlab = "volume", ylab = "Girth")
+}
+plot_trees()
+
+predict_volume <- function(g,h){
+  fit_2 <- lm(Volume ~ Girth + Height, data = trees)
+  predict(fit_2, data.frame(Girth = g, Height=h))
+}
+
+predict_volume(g=9, h=70)
+
+
+```
+```{r}
+carSpeeds <- read.csv(file = 'grocery_transactions.csv')
+
+
+carSpeeds$item_name <- as.factor(carSpeeds$item_name)
+carSpeeds$txn_id <- as.factor(carSpeeds$txn_id)
+
+read_data <-  function(filename){
+  w<-read.csv(file = filename)
+  w[sapply(w, is.numeric)] <- lapply(w[sapply(w, is.numeric)], as.factor)
+}
+
+summary(read_data('grocery_transactions.csv'))
+
+w<-read.csv(file = 'grocery_transactions.csv')
+w$txn_id <- as.factor(w$txn_id)
+w$item_name <- as.factor(w$item_name)
+summary(w)
+
+w[sapply(w, is.numeric)] <- lapply(w[sapply(w, is.numeric)], as.factor)
+
+class(q$txn_id)
+```
+```{r}
+
+craps = function() {
+  i <- 10
+  while (i>0) {
+    first.roll = sum(sample(1:6,size=2,replace=TRUE))
+    if (any(c(7,11) == first.roll))
+      print(i)
+      print(first.roll)
+      break
+    
+  
+    i <- i - 1
+  }
+}
+craps()
+
+
+```
+```{r}
+gamecounts<-function(n){
+  games <- NULL
+  
+  N<-n
+  
+  for (t in 1:N){
+    comeout <- sample(1:6, 1) + sample(1:6, 1)
+    
+    if(comeout %in% c(2,3,12)){
+      result <- F
+      
+    } else if( comeout %in% c(7,11)){
+      result <- T
+    } else {
+      roll <- sample(1:6,1) + sample(1:6,1)
+      
+      while (!roll %in% c(7, comeout)) {
+        roll <- sample(1:6,1) + sample(1:6,1)
+      }
+      if(roll == 7)
+        result = F
+      else
+        result = T
+    }
+    games[t] <- result
+  }
+}
+
+gamecounts(3)
+```
+
+```{r}
+library(arules)
+rules <- apriori (carSpeeds, parameter = list(supp = 0.001, conf = 0.5)) # Min Support as 0.001, confidence as 0.8.
+rules_lift <- sort (rules, by="lift", decreasing=TRUE) # 'high-lift' rules.
+inspect(head(rules_lift)) # show the support, lift and confidence for all rules
+```
+
+
