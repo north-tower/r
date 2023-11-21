@@ -1,0 +1,99 @@
+---
+title: "Bayesian"
+output: html_notebook
+---
+
+ 
+```{r}
+#Libraries
+library(ggplot2)
+library(psych)
+library(BAS)
+library(lme4)
+library(lmerTest)
+
+```
+
+```{r}
+#importing the dataset
+my_data <- read.delim("OBAMA data.txt")
+str(my_data)
+```
+
+```{r}
+#Descriptive data analysis
+describe(my_data)
+
+```
+
+
+```{r}
+#Visualization of key variables
+ggplot(data = my_data, aes(x =VOTE, y=SAVINGS)) +
+  geom_point()
+```
+The relation between vote and savings is expected to be non-linear. This might be due to that at a huge chunk of a the savings are not that high.
+```{r}
+ggplot(data = my_data, aes(x =VOTE, y=FEMALE)) +
+  geom_point()
+```
+Most of the high percentage votes came from places with a high number of females
+```{r}
+ggplot(data = my_data, aes(x =VOTE, y=INCOME)) +
+  geom_point()
+```
+Most votes can from individuals with an income between 10000 and 20000
+
+
+#Bayesian linear models
+```{r}
+mydata_no_na = na.omit(my_data)
+bma_lwage = bas.lm(VOTE ~ . , data = mydata_no_na, prior = "BIC", modelprior = uniform())
+bma_lwage
+```
+#Model summary
+```{r}
+# Top 5 most probable models
+summary(bma_lwage)
+```
+The summary command gives us both the posterior model inclusion probability for each variable and the most probable models.the most likely model, which has posterior probability of 0.4246, includes an intercept, SAVINGS, POVERTY, VETERANS, FEMALE, and DENSITY.
+
+```{r}
+# Obtain the coefficients from the model `bma_lwage`
+coef_lwage <- coefficients(bma_lwage)
+coef_lwage
+```
+#visualize the posterior distribution of the coefficients 
+```{r}
+par(mfrow = c(2,2))
+plot(coef_lwage, subset = c(3,5,6,7,9), ask = FALSE)
+```
+# 95% credible intervals for these coefficients
+```{r}
+confint(coef_lwage)
+```
+#Normalizing the data
+```{r}
+mydata_no_na$logAGE <-log(mydata_no_na$AGE)
+mydata_no_na$logSAVINGS <-log(mydata_no_na$SAVINGS)
+mydata_no_na$logVOTE <- log(mydata_no_na$VOTE)
+mydata_no_na$logINCOME <- log(mydata_no_na$INCOME)
+mydata_no_na$logFEMALE <- log(mydata_no_na$FEMALE)
+```
+
+#Multilevel linear models
+```{r}
+
+# Run random intercept model
+model <- lmer(logVOTE~ logSAVINGS + (logINCOME + logFEMALE | logAGE), data=mydata_no_na)
+model
+```
+```{r}
+#Getting the summary results of the model
+summary(model)
+```
+```{r}
+#Getting the coefficients
+confint(model, level = 0.95, method = "Wald")
+```
+We are 95% confident that the average increase was between -0.07544322  and -0.02968009
