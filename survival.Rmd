@@ -1,0 +1,65 @@
+---
+title: "R Notebook"
+output:
+  word_document: default
+  html_notebook: default
+---
+
+```{r}
+library(RMark)
+library(benford.analysis)
+snakes = convert.inp("survival",covariates=c("SVLZ","BC","Sex"))
+snakes$SVLZ.sq <- (snakes$SVLZ)^2
+head(snakes)
+```
+```{r}
+# convert sex variable to a factor so that we can treat them as 
+# grouping variables in the analysis to ease working with output later
+
+snakes$Sex  <- factor(snakes$Sex,
+                     levels = c(0, 1),
+                     labels = c("female", "male"))
+
+
+```
+
+```{r}
+# Process data
+snakes.processed = process.data(snakes, model = "Known", groups = c("Sex"))
+# Create default design data
+snakes.ddl = make.design.data(snakes.processed)
+```
+
+```{r}
+# setup a function 
+run.snakes <- function() {
+#  Define range of models for S
+  S.dot = list(formula =  ~ 1)
+  S.sex = list(formula =  ~ Sex)
+  S.SVL = list(formula =  ~ SVLZ)
+  S.SVL.sq = list(formula =  ~ SVLZ + SVLZ.sq)
+  S.length.sq = list(formula =  ~ length + length.sq)
+
+
+
+# Create model list
+  model.list = create.model.list("Known")
+
+
+  snake.results = mark.wrapper(model.list, data = snakes.processed,
+    ddl = snakes.ddl, invisible = TRUE, threads = 2)
+    
+  # Return model table and list of models
+  return(snake.results)
+}
+
+```
+Run the models
+
+```{r}
+snake.results = run.snakes()
+```
+Model Results
+```{r}
+snakes.results
+```
