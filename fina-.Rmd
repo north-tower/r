@@ -1,0 +1,130 @@
+---
+title: "Final"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r}
+#libraries
+library("readxl")  
+library("ggpubr")
+library(ggplot2)
+library(zoo)
+library(tseries)
+```
+```{r}
+# reading data from the file
+data <- read.csv("y-file.csv")
+data2 <- read.csv("y_file2.csv")
+data3 <- read.csv("Book4.csv")
+# print data
+print (data)
+
+```
+
+```{r}
+#1.
+res <- t.test(data$Variable_2, data$Varible_3, var.equal = TRUE)
+res
+```
+```{r}
+#2.
+wil <- wilcox.test(data$Variable_2, data$Varible_3)
+wil
+
+```
+```{r}
+#3.
+#ftest
+res.ftest <- var.test(data$Variable_2, data$Varible_3)
+res.ftest
+```
+```{r}
+#
+# Bartlett’s test
+  
+# Using bartlett.test()
+result = bartlett.test(Value~Group, data2)
+
+# print the result
+print(result)
+
+```
+```{r}
+#fligner.test
+fligner.test(Value~Group, data2)
+
+```
+```{r}
+#Boxplot of all the variables
+# Plot weight by group and color by group
+ggboxplot(data3, x = "Group", y = "Value", 
+          color = "Group", palette = c("#00AFBB", "#E7B800","green"),
+          ylab = "Value", xlab = "Variable Type")
+```
+```{r}
+#linear regression
+model <- lm(Varible_3 ~ Variable_1, data = data)
+model
+```
+```{r}
+#Multiple regression
+model2 <- lm(Varible_3 ~ Variable_1 + Variable_2, data = data)
+summary(model2)
+
+```
+```{r}
+# Anova
+# Compute the analysis of variance
+res.aov <- aov(Value ~ Group, data = data3)
+# Summary of the analysis
+TukeyHSD(res.aov)
+```
+```{r}
+#Time series
+data$Date <- as.yearmon(paste(data$yr, data$month), "%Y %m")
+#create time series plot
+p <- ggplot(data, aes(x=Date, y=Variable_1)) +
+       geom_line() + ggtitle("Time Series Plot of Variable 1")
+#display time series plot
+p
+```
+```{r}
+p2 <- ggplot(data, aes(x=Date, y=Variable_2)) +
+       geom_line() + ggtitle("Time Series Plot of Variable 2")
+#display time series plot
+p2
+```
+```{r}
+p3 <- ggplot(data, aes(x=Date, y=Varible_3)) +
+       geom_line() + ggtitle("Time Series Plot of Variable 3")
+#display time series plot
+p3
+```
+```{r}
+#calculate autocorrelations
+data <- na.omit(data)
+acf(data$Variable_1, pl=FALSE)
+acf(data$Variable_2, pl=FALSE)
+acf(data$Varible_3, pl=FALSE)
+```
+```{r}
+#Partial autocorrelations
+pacf(data$Variable_1, pl=FALSE)
+pacf(data$Variable_2, pl=FALSE)
+pacf(data$Varible_3, pl=FALSE)
+```
+```{r}
+#Moving average
+moving_average <- function(x, n = 5) {             # Create user-defined function
+  stats::filter(x, rep(1 / n, n), sides = 2)
+}
+
+my_moving_average_1 <- rollmean(data$Variable_1,k=5)
+
+plot(data$Date, data$Variable_1, type = "l",
+     xlab = "Time Series", ylab = "Values")
+lines(data$Date, c(NA, NA, my_moving_average_1, NA, NA), type = "l", col = 2)
+
+```
